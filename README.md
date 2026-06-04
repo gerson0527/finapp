@@ -30,3 +30,14 @@ npm start
 ## EAS
 
 Proyecto vinculado a Expo Application Services. Ver `eas.json`.
+
+## Desplegar en Vercel (navegador / móvil)
+
+1. Importa el repo [gerson0527/finapp](https://github.com/gerson0527/finapp) en [vercel.com](https://vercel.com).
+2. En **Environment Variables** añade:
+   - `EXPO_PUBLIC_SUPABASE_URL`
+   - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+3. Vercel usará `vercel.json` (build: `npm run build:web`, salida: `dist`).
+4. Tras el deploy, abre la URL desde el navegador del teléfono.
+
+Build local: `npm run build:web`

@@ -43,6 +43,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build:web": "expo export -p web",
     "db:migrate-onboarding": "node scripts/migrate-onboarding.mjs",
     "db:migrate-monthly": "node scripts/migrate-monthly.mjs",
     "build:ios": "eas build --profile development --platform ios",
