@@ -1,69 +1,62 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { Tabs } from 'expo-router';
+import BrutalTabBar from '@/src/components/BrutalTabBar';
+import { colors } from '@/src/constants/theme';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+function TabIcon({ name, focused }: { name: keyof typeof Ionicons.glyphMap; focused: boolean }) {
+  const scale = useSharedValue(1);
+  React.useEffect(() => {
+    scale.value = withSpring(focused ? 1.08 : 1, { damping: 12 });
+  }, [focused]);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
+    <Animated.View style={animStyle}>
+      <Ionicons
+        name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)}
+        size={20}
+        color={focused ? colors.ink : colors.textMuted}
+      />
+    </Animated.View>
+  );
+}
+
+export default function TabLayout() {
+  return (
     <Tabs
+      tabBar={(props) => <BrutalTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
+        headerShown: false,
+        tabBarActiveTintColor: colors.ink,
+        tabBarInactiveTintColor: colors.textMuted,
+      }}
+    >
       <Tabs.Screen
         name="index"
-        options={{
-          title: 'Tab One',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
-          ),
-        }}
+        options={{ title: 'Inicio', tabBarIcon: ({ focused }) => <TabIcon name="home" focused={focused} /> }}
       />
       <Tabs.Screen
-        name="two"
-        options={{
-          title: 'Tab Two',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-        }}
+        name="history"
+        options={{ title: 'Historial', tabBarIcon: ({ focused }) => <TabIcon name="stats-chart" focused={focused} /> }}
+      />
+      <Tabs.Screen
+        name="budgets"
+        options={{ title: 'Presup.', tabBarIcon: ({ focused }) => <TabIcon name="wallet" focused={focused} /> }}
+      />
+      <Tabs.Screen name="add" options={{ href: null, title: '' }} />
+      <Tabs.Screen
+        name="savings"
+        options={{ title: 'Ahorros', tabBarIcon: ({ focused }) => <TabIcon name="flag" focused={focused} /> }}
+      />
+      <Tabs.Screen
+        name="compare"
+        options={{ title: 'Comparar', tabBarIcon: ({ focused }) => <TabIcon name="analytics" focused={focused} /> }}
+      />
+      <Tabs.Screen
+        name="more"
+        options={{ title: 'Más', tabBarIcon: ({ focused }) => <TabIcon name="ellipsis-horizontal" focused={focused} /> }}
       />
     </Tabs>
   );

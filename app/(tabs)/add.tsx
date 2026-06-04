@@ -1,0 +1,40 @@
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { createTransaction } from '@/services/transactionService';
+import { useApp } from '@/src/context/AppContext';
+import BrutalScreen from '@/src/components/BrutalScreen';
+import TransactionForm from '@/src/components/TransactionForm';
+import { colors, spacing } from '@/src/constants/theme';
+
+export default function AddTransactionScreen() {
+  const router = useRouter();
+  const { triggerRefresh } = useApp();
+
+  return (
+    <BrutalScreen showDecor={false}>
+      <View style={styles.handle} />
+      <TransactionForm
+        title="Nueva transacción"
+        submitLabel="Guardar"
+        onCancel={() => router.back()}
+        onSubmit={async (dto) => {
+          await createTransaction(dto);
+          triggerRefresh();
+          router.back();
+        }}
+      />
+    </BrutalScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  handle: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.ink,
+    alignSelf: 'center',
+    marginTop: 8,
+  },
+});

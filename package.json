@@ -3,9 +3,16 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "9.1.0",
+    "@supabase/supabase-js": "^2.107.0",
+    "date-fns": "^4.4.0",
     "expo": "~56.0.8",
     "expo-constants": "~56.0.16",
+    "expo-dev-client": "~56.0.18",
     "expo-font": "~56.0.5",
+    "expo-haptics": "~56.0.3",
     "expo-linking": "~56.0.13",
     "expo-router": "~56.2.8",
     "expo-splash-screen": "~56.0.10",
@@ -18,18 +25,30 @@
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
+    "react-native-svg": "15.15.4",
     "react-native-web": "~0.21.0",
     "react-native-worklets": "0.8.3"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eas-cli": "^20.0.0",
+    "pg": "^8.21.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
     "start": "expo start",
+    "start:go": "expo start --go",
+    "start:tunnel": "expo start --tunnel",
+    "start:dev": "expo start --dev-client",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "db:migrate-onboarding": "node scripts/migrate-onboarding.mjs",
+    "db:migrate-monthly": "node scripts/migrate-monthly.mjs",
+    "build:ios": "eas build --profile development --platform ios",
+    "build:android": "eas build --profile development --platform android",
+    "go:ios": "eas go",
+    "device:register": "eas device:create"
   },
   "private": true
 }

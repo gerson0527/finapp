@@ -1,0 +1,27 @@
+import { useState, useEffect, useCallback } from 'react';
+import { getMonthlyStats, MonthlyStats } from '@/services/transactionService';
+
+export function useMonthlyStats(month: string) {
+  const [stats, setStats] = useState<MonthlyStats>({ income: 0, expenses: 0, balance: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getMonthlyStats(month);
+      setStats(data);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [month]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  return { ...stats, loading, error, refresh: load };
+}

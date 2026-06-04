@@ -1,56 +1,73 @@
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
+import { colors } from '@/src/constants/theme';
+import { AuthProvider, useAuth } from '@/src/context/AuthContext';
+import { AppProvider } from '@/src/context/AppContext';
+import MonthlyBalanceGate from '@/src/components/MonthlyBalanceGate';
 
-import { useColorScheme } from '@/components/useColorScheme';
-
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
-
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
-};
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
+function RootNavigator() {
+  const { session, isLoading, onboardingComplete } = useAuth();
+  const router = useRouter();
+  const segments = useSegments();
 
   useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    if (isLoading) return;
+    if (session && onboardingComplete === null) return;
+
+    SplashScreen.hideAsync();
+
+    const inAuth = segments[0] === '(auth)';
+    const onOnboarding = segments[1] === 'onboarding';
+
+    if (!session && !inAuth) {
+      router.replace('/(auth)/login');
+      return;
     }
-  }, [loaded]);
 
-  if (!loaded) {
-    return null;
+    if (session && onboardingComplete === false && !onOnboarding) {
+      router.replace('/(auth)/onboarding');
+      return;
+    }
+
+    if (session && onboardingComplete && inAuth) {
+      router.replace('/(tabs)');
+    }
+  }, [session, isLoading, onboardingComplete, segments]);
+
+  if (isLoading || (session && onboardingComplete === null)) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={colors.yellow} />
+      </View>
+    );
   }
 
-  return <RootLayoutNav />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="savings" options={{ headerShown: true, headerTitle: 'Metas de Ahorro', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
+      <Stack.Screen name="categories" options={{ headerShown: true, headerTitle: 'Categorías', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
+      <Stack.Screen name="transaction/[id]" options={{ headerShown: false }} />
+    </Stack>
+  );
 }
 
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
-    </ThemeProvider>
+    <AuthProvider>
+      <AppProvider>
+        <StatusBar style="dark" />
+        <MonthlyBalanceGate>
+          <RootNavigator />
+        </MonthlyBalanceGate>
+      </AppProvider>
+    </AuthProvider>
   );
 }
