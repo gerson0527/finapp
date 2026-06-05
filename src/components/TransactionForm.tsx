@@ -4,8 +4,8 @@ import { useFocusEffect } from 'expo-router';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withSequence } from 'react-native-reanimated';
 import { format, isToday, parseISO } from 'date-fns';
 import { getCategories, Category } from '@/services/categoryService';
-import { getMainAccount } from '@/services/accountService';
-import { CreateTransactionDTO, Transaction } from '@/services/transactionService';
+import { getAccounts, Account } from '@/services/accountService';
+import { CreateTransactionDTO, CreateTransferDTO, Transaction } from '@/services/transactionService';
 import {
   BALANCE_EXCEEDED_MESSAGE,
   expenseExceedsBalance,
@@ -24,7 +24,7 @@ import DatePickerField from '@/src/components/DatePickerField';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 export interface TransactionFormValues {
-  type: 'expense' | 'income';
+  type: 'expense' | 'income' | 'transfer';
   amount: string;
   description: string;
   note: string;
@@ -38,6 +38,7 @@ interface TransactionFormProps {
   submitLabel: string;
   initial?: Partial<TransactionFormValues> & { transaction?: Transaction };
   onSubmit: (dto: CreateTransactionDTO) => Promise<void>;
+  onTransfer?: (dto: CreateTransferDTO) => Promise<void>;
   onDelete?: () => Promise<void>;
   onCancel: () => void;
 }
@@ -47,12 +48,13 @@ export default function TransactionForm({
   submitLabel,
   initial,
   onSubmit,
+  onTransfer,
   onDelete,
   onCancel,
 }: TransactionFormProps) {
   const tx = initial?.transaction;
-  const [type, setType] = useState<'expense' | 'income'>(
-    (initial?.type ?? tx?.type ?? 'expense') as 'expense' | 'income'
+  const [type, setType] = useState<'expense' | 'income' | 'transfer'>(
+    (initial?.type ?? (tx?.type === 'transfer' ? 'expense' : tx?.type) ?? 'expense') as 'expense' | 'income' | 'transfer'
   );
   const [amount, setAmount] = useState(
     initial?.amount ?? (tx ? String(Math.round(Number(tx.amount))) : '')
@@ -62,7 +64,12 @@ export default function TransactionForm({
     initial?.categoryId ?? tx?.category_id ?? null
   );
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [accountId, setAccountId] = useState(initial?.accountId ?? tx?.account_id ?? '');
+  const [fromAccountId, setFromAccountId] = useState('');
+  const [toAccountId, setToAccountId] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceDay, setRecurrenceDay] = useState(String(new Date().getDate()));
   const [transactionDate, setTransactionDate] = useState(
     initial?.date ?? (tx ? parseISO(tx.date) : new Date())
   );
@@ -77,19 +84,22 @@ export default function TransactionForm({
   useFocusEffect(
     useCallback(() => {
       getCategories().then(setCategories).catch(() => {});
-    }, [])
+      getAccounts()
+        .then((list) => {
+          setAccounts(list);
+          if (!accountId && list[0]) setAccountId(list[0].id);
+          if (!fromAccountId && list[0]) setFromAccountId(list[0].id);
+          if (!toAccountId && list[1]) setToAccountId(list[1].id);
+          else if (!toAccountId && list[0]) setToAccountId(list[0].id);
+        })
+        .catch(() => {});
+    }, [accountId, fromAccountId, toAccountId])
   );
 
   useEffect(() => {
-    getMainAccount()
-      .then((a) => {
-        if (a) {
-          if (!accountId) setAccountId(a.id);
-          setAccountBalance(Number(a.balance));
-        }
-      })
-      .catch(() => setAccountBalance(0));
-  }, [accountId]);
+    const selected = accounts.find((a) => a.id === accountId);
+    setAccountBalance(selected ? Number(selected.balance) : null);
+  }, [accountId, accounts]);
 
   useEffect(() => {
     amountScale.value = withSequence(withSpring(1.05, { damping: 8 }), withSpring(1, { damping: 12 }));
@@ -97,7 +107,9 @@ export default function TransactionForm({
 
   const amountAnim = useAnimatedStyle(() => ({ transform: [{ scale: amountScale.value }] }));
   const filteredCategories = categories.filter((c) =>
-    type === 'expense' ? (c.type === 'expense' || c.type === 'both') : (c.type === 'income' || c.type === 'both')
+    type === 'income'
+      ? (c.type === 'income' || c.type === 'both')
+      : (c.type === 'expense' || c.type === 'both')
   );
 
   useEffect(() => {
@@ -125,6 +137,40 @@ export default function TransactionForm({
   async function handleSave() {
     if (!numAmount || numAmount <= 0) { Alert.alert('Error', 'Ingresa un monto válido'); return; }
     if (!selectedCategoryId) { Alert.alert('Error', 'Selecciona una categoría'); return; }
+
+    if (type === 'transfer') {
+      if (!onTransfer) { Alert.alert('Error', 'Transferencias no disponibles'); return; }
+      if (!fromAccountId || !toAccountId) { Alert.alert('Error', 'Selecciona cuentas origen y destino'); return; }
+      if (fromAccountId === toAccountId) { Alert.alert('Error', 'Las cuentas deben ser diferentes'); return; }
+      const fromAcct = accounts.find((a) => a.id === fromAccountId);
+      if (fromAcct && numAmount > Number(fromAcct.balance)) {
+        setExceededAttempt(numAmount);
+        setAccountBalance(Number(fromAcct.balance));
+        setShowExceededAlert(true);
+        return;
+      }
+      setSaving(true);
+      try {
+        const txTime = isToday(transactionDate)
+          ? format(new Date(), 'HH:mm:ss')
+          : '12:00:00';
+        await onTransfer({
+          amount: numAmount,
+          from_account_id: fromAccountId,
+          to_account_id: toAccountId,
+          category_id: selectedCategoryId,
+          date: format(transactionDate, 'yyyy-MM-dd'),
+          time: txTime,
+          note: note.trim() || undefined,
+        });
+      } catch (e: unknown) {
+        Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo transferir');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     if (!accountId) { Alert.alert('Error', 'No hay cuenta disponible'); return; }
 
     if (type === 'expense' && accountBalance !== null && exceedsBalance) {
@@ -154,13 +200,19 @@ export default function TransactionForm({
         date: format(transactionDate, 'yyyy-MM-dd'),
         time: txTime,
         note: note.trim() || undefined,
+        is_recurring: type === 'expense' && !tx ? isRecurring : undefined,
+        recurrence_day:
+          type === 'expense' && !tx && isRecurring
+            ? Math.min(31, Math.max(1, parseInt(recurrenceDay, 10) || 1))
+            : undefined,
       });
-    } catch (e: any) {
-      if (e.message === BALANCE_EXCEEDED_MESSAGE) {
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'No se pudo guardar';
+      if (message === BALANCE_EXCEEDED_MESSAGE) {
         setExceededAttempt(numAmount);
         setShowExceededAlert(true);
       } else {
-        Alert.alert('Error', e.message || 'No se pudo guardar');
+        Alert.alert('Error', message);
       }
     } finally {
       setSaving(false);
@@ -210,14 +262,18 @@ export default function TransactionForm({
 
         <FadeInView index={1}>
           <View style={styles.toggleRow}>
-            {(['expense', 'income'] as const).map((t) => (
+            {(['expense', 'income', 'transfer'] as const).map((t) => (
               <AnimatedPressable
                 key={t}
-                style={[styles.toggleBtn, type === t && (t === 'expense' ? styles.toggleExpense : styles.toggleIncome)]}
-                onPress={() => setType(t)}
+                style={[
+                  styles.toggleBtn,
+                  styles.toggleBtnThird,
+                  type === t && (t === 'expense' ? styles.toggleExpense : t === 'income' ? styles.toggleIncome : styles.toggleTransfer),
+                ]}
+                onPress={() => !tx && setType(t)}
               >
-                <SText variant="headline" style={{ fontWeight: '700', textTransform: 'uppercase' }}>
-                  {t === 'expense' ? 'Gasto' : 'Ingreso'}
+                <SText variant="caption1" style={{ fontWeight: '700', textTransform: 'uppercase' }}>
+                  {t === 'expense' ? 'Gasto' : t === 'income' ? 'Ingreso' : 'Transfer.'}
                 </SText>
               </AnimatedPressable>
             ))}
@@ -269,6 +325,49 @@ export default function TransactionForm({
         </FadeInView>
 
         <FadeInView index={4}>
+          {type === 'transfer' ? (
+            <>
+              <SText variant="subhead" style={styles.label}>Cuenta origen</SText>
+              <View style={styles.accountRow}>
+                {accounts.map((a) => (
+                  <AnimatedPressable
+                    key={`from-${a.id}`}
+                    style={[styles.accountChip, brutalBorder(2), fromAccountId === a.id && styles.accountChipActive]}
+                    onPress={() => setFromAccountId(a.id)}
+                  >
+                    <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>{a.name}</SText>
+                  </AnimatedPressable>
+                ))}
+              </View>
+              <SText variant="subhead" style={styles.label}>Cuenta destino</SText>
+              <View style={styles.accountRow}>
+                {accounts.map((a) => (
+                  <AnimatedPressable
+                    key={`to-${a.id}`}
+                    style={[styles.accountChip, brutalBorder(2), toAccountId === a.id && styles.accountChipActive]}
+                    onPress={() => setToAccountId(a.id)}
+                  >
+                    <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>{a.name}</SText>
+                  </AnimatedPressable>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <SText variant="subhead" style={styles.label}>Cuenta</SText>
+              <View style={styles.accountRow}>
+                {accounts.map((a) => (
+                  <AnimatedPressable
+                    key={a.id}
+                    style={[styles.accountChip, brutalBorder(2), accountId === a.id && styles.accountChipActive]}
+                    onPress={() => setAccountId(a.id)}
+                  >
+                    <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>{a.name}</SText>
+                  </AnimatedPressable>
+                ))}
+              </View>
+            </>
+          )}
           <SText variant="subhead" style={styles.label}>Categoría</SText>
           <View style={styles.categoryGrid}>
             {filteredCategories.map((cat) => (
@@ -283,7 +382,33 @@ export default function TransactionForm({
           </View>
         </FadeInView>
 
-        <FadeInView index={5}>
+        {type === 'expense' && !tx ? (
+          <FadeInView index={5}>
+            <AnimatedPressable
+              style={[styles.recurringToggle, brutalBorder(2), isRecurring && styles.recurringActive]}
+              onPress={() => setIsRecurring(!isRecurring)}
+            >
+              <SText variant="footnote" style={{ fontWeight: '800' }}>
+                ¿Es un gasto fijo mensual?
+              </SText>
+              <SText variant="caption2" color={colors.textMuted}>{isRecurring ? 'Sí' : 'No'}</SText>
+            </AnimatedPressable>
+            {isRecurring ? (
+              <View style={[styles.dayRow, brutalBorder(2)]}>
+                <SText variant="footnote" style={{ fontWeight: '700' }}>Día del mes</SText>
+                <TextInput
+                  style={styles.dayInput}
+                  value={recurrenceDay}
+                  onChangeText={(t) => setRecurrenceDay(t.replace(/\D/g, '').slice(0, 2))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                />
+              </View>
+            ) : null}
+          </FadeInView>
+        ) : null}
+
+        <FadeInView index={6}>
           <SText variant="subhead" style={styles.label}>Nota (opcional)</SText>
           <TextInput
             style={[styles.textInput, brutalBorder(2), { minHeight: 72, textAlignVertical: 'top' }]}
@@ -295,7 +420,7 @@ export default function TransactionForm({
           />
         </FadeInView>
 
-        <FadeInView index={6} style={styles.saveSection}>
+        <FadeInView index={7} style={styles.saveSection}>
           <BrutalButton
             label={saving ? 'Guardando...' : submitLabel}
             onPress={handleSave}
@@ -334,8 +459,45 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     backgroundColor: colors.surface,
   },
+  toggleBtnThird: { paddingVertical: 12 },
   toggleExpense: { backgroundColor: colors.expenseBg },
   toggleIncome: { backgroundColor: colors.incomeBg },
+  toggleTransfer: { backgroundColor: colors.surfaceAlt },
+  accountRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.lg },
+  accountChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    maxWidth: '48%',
+  },
+  accountChipActive: { backgroundColor: colors.yellow },
+  recurringToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.sm,
+  },
+  recurringActive: { backgroundColor: colors.pink },
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceAlt,
+    marginBottom: spacing.lg,
+  },
+  dayInput: {
+    width: 48,
+    textAlign: 'center',
+    fontWeight: '800',
+    fontSize: 18,
+    color: colors.ink,
+  },
   amountCard: {
     padding: spacing.xxl,
     marginBottom: spacing.sm,

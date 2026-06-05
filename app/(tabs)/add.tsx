@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { createTransaction } from '@/services/transactionService';
+import { createTransaction, createTransfer } from '@/services/transactionService';
 import { useApp } from '@/src/context/AppContext';
 import BrutalScreen from '@/src/components/BrutalScreen';
 import TransactionForm from '@/src/components/TransactionForm';
@@ -20,6 +20,11 @@ export default function AddTransactionScreen() {
         onCancel={() => router.back()}
         onSubmit={async (dto) => {
           await createTransaction(dto);
+          triggerRefresh();
+          router.back();
+        }}
+        onTransfer={async (dto) => {
+          await createTransfer(dto);
           triggerRefresh();
           router.back();
         }}
