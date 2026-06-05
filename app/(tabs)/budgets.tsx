@@ -21,6 +21,7 @@ import { markBudgetMonthReviewed } from '@/lib/budgetReviewStorage';
 import BudgetMonthReviewModal from '@/src/components/BudgetMonthReviewModal';
 import { getCategories } from '@/services/categoryService';
 import { createTransaction } from '@/services/transactionService';
+import { checkBudgetAlertsAfterExpense } from '@/services/notificationService';
 import { getMainAccount } from '@/services/accountService';
 import { formatMonthLabel, getDefaultDateForMonth, getCurrentMonth } from '@/lib/month';
 import BudgetCard from '@/src/components/BudgetCard';
@@ -209,6 +210,11 @@ export default function BudgetsScreen() {
         note: payNote.trim() || undefined,
         budget_id: payBudget.id,
       });
+
+      await checkBudgetAlertsAfterExpense(selectedMonth, {
+        budgetId: payBudget.id,
+        categoryId: payBudget.category_id,
+      }).catch(() => {});
 
       budgets.refresh();
       triggerRefresh();

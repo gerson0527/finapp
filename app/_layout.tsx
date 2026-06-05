@@ -8,6 +8,7 @@ import { colors } from '@/src/constants/theme';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { AppProvider } from '@/src/context/AppContext';
 import MonthlyBalanceGate from '@/src/components/MonthlyBalanceGate';
+import { initNotifications } from '@/services/notificationService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -58,12 +59,17 @@ function RootNavigator() {
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="analytics" options={{ headerShown: true, headerTitle: 'Analytics', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="accounts" options={{ headerShown: true, headerTitle: 'Cuentas', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
+      <Stack.Screen name="notifications-settings" options={{ headerShown: true, headerTitle: 'Notificaciones', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="transaction/[id]" options={{ headerShown: false }} />
     </Stack>
   );
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    initNotifications().catch(() => {});
+  }, []);
+
   return (
     <AuthProvider>
       <AppProvider>

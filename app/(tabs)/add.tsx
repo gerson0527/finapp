@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { createTransaction, createTransfer } from '@/services/transactionService';
+import { checkBudgetAlertsAfterExpense } from '@/services/notificationService';
 import { useApp } from '@/src/context/AppContext';
 import BrutalScreen from '@/src/components/BrutalScreen';
 import TransactionForm from '@/src/components/TransactionForm';
@@ -20,6 +21,12 @@ export default function AddTransactionScreen() {
         onCancel={() => router.back()}
         onSubmit={async (dto) => {
           await createTransaction(dto);
+          if (dto.type === 'expense') {
+            await checkBudgetAlertsAfterExpense(dto.date.slice(0, 7), {
+              categoryId: dto.category_id,
+              budgetId: dto.budget_id,
+            }).catch(() => {});
+          }
           triggerRefresh();
           router.back();
         }}

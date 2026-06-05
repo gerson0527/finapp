@@ -145,6 +145,13 @@ export default function MoreScreen() {
       iconBg: colors.pink,
     },
     {
+      icon: 'notifications-outline',
+      label: 'Notificaciones',
+      subtitle: 'Presupuesto 80% y recordatorio diario',
+      route: '/notifications-settings',
+      iconBg: colors.pink,
+    },
+    {
       icon: 'download-outline',
       label: 'Exportar datos',
       subtitle: 'CSV o PDF de tu historial',
