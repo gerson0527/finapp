@@ -1,13 +1,28 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { View, StyleSheet, ScrollView, TextInput, Modal } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  Modal,
+  Platform,
+  KeyboardAvoidingView,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown } from 'react-native-reanimated';
+import { format } from 'date-fns';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useApp } from '@/src/context/AppContext';
-import { createBudget } from '@/services/budgetService';
+import { createBudget, BudgetWithSpent, updateBudgetLimits } from '@/services/budgetService';
+import { getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
+import { markBudgetMonthReviewed } from '@/lib/budgetReviewStorage';
+import BudgetMonthReviewModal from '@/src/components/BudgetMonthReviewModal';
 import { getCategories } from '@/services/categoryService';
-import { formatMonthLabel } from '@/lib/month';
+import { createTransaction } from '@/services/transactionService';
+import { getMainAccount } from '@/services/accountService';
+import { formatMonthLabel, getDefaultDateForMonth, getCurrentMonth } from '@/lib/month';
 import BudgetCard from '@/src/components/BudgetCard';
 import MonthSelector from '@/src/components/MonthSelector';
 import SText from '@/src/components/SText';
@@ -75,7 +90,133 @@ export default function BudgetsScreen() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  const [payBudget, setPayBudget] = useState<BudgetWithSpent | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payNote, setPayNote] = useState('');
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+  const [accountBalance, setAccountBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewSaving, setReviewSaving] = useState(false);
+
   const monthLabel = formatMonthLabel(selectedMonth);
+  const currentMonth = getCurrentMonth();
+  const isCurrentMonth = selectedMonth === currentMonth;
+
+  useEffect(() => {
+    if (
+      isCurrentMonth &&
+      budgets.needsMonthReview &&
+      !budgets.loading &&
+      budgets.data.length > 0
+    ) {
+      setShowReviewModal(true);
+    }
+  }, [isCurrentMonth, budgets.needsMonthReview, budgets.loading, budgets.data.length]);
+
+  useEffect(() => {
+    if (!payBudget) return;
+    setBalanceLoading(true);
+    getMainAccount()
+      .then((a) => setAccountBalance(a ? Number(a.balance) : 0))
+      .catch(() => setAccountBalance(0))
+      .finally(() => setBalanceLoading(false));
+  }, [payBudget]);
+
+  const payRemaining = payBudget
+    ? Math.max(Number(payBudget.limit_amount) - Number(payBudget.spent), 0)
+    : 0;
+  const payNumAmount = parseFloat(payAmount) || 0;
+  const exceedsBalance = accountBalance !== null && payNumAmount > accountBalance;
+
+  function getDefaultPayAmount(budget: BudgetWithSpent): string {
+    const remaining = Math.max(Number(budget.limit_amount) - Number(budget.spent), 0);
+    return remaining > 0 ? String(Math.round(remaining)) : '';
+  }
+
+  function openPay(budget: BudgetWithSpent) {
+    setPayError(null);
+    setPayAmount(getDefaultPayAmount(budget));
+    setPayNote('');
+    setPayBudget(budget);
+  }
+
+  function closePay() {
+    setPayBudget(null);
+    setPayAmount('');
+    setPayNote('');
+    setPayError(null);
+  }
+
+  async function handleReviewConfirm(limits: Record<string, number>) {
+    setReviewSaving(true);
+    try {
+      const updates = Object.entries(limits).map(([id, limit_amount]) => ({
+        id,
+        limit_amount,
+      }));
+      await updateBudgetLimits(updates);
+
+      const userId = await getCurrentUserIdOrNull();
+      if (userId) await markBudgetMonthReviewed(userId, currentMonth);
+
+      budgets.clearMonthReview();
+      setShowReviewModal(false);
+      budgets.refresh();
+      triggerRefresh();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudieron actualizar los presupuestos.');
+    } finally {
+      setReviewSaving(false);
+    }
+  }
+
+  function handleReviewDismiss() {
+    setShowReviewModal(false);
+  }
+
+  async function handlePay() {
+    if (!payBudget) return;
+    const amount = parseFloat(payAmount);
+    if (!amount || amount <= 0) {
+      setPayError('Ingresa un monto válido.');
+      return;
+    }
+    if (exceedsBalance) {
+      setPayError('No tienes suficiente balance disponible.');
+      return;
+    }
+
+    setPaying(true);
+    setPayError(null);
+    try {
+      const account = await getMainAccount();
+      if (!account) throw new Error('No hay cuenta disponible.');
+
+      const txDate = getDefaultDateForMonth(selectedMonth);
+      await createTransaction({
+        type: 'expense',
+        amount,
+        description: payBudget.title,
+        category_id: payBudget.category_id,
+        account_id: account.id,
+        date: format(txDate, 'yyyy-MM-dd'),
+        time: format(new Date(), 'HH:mm:ss'),
+        note: payNote.trim() || undefined,
+        budget_id: payBudget.id,
+      });
+
+      budgets.refresh();
+      triggerRefresh();
+      closePay();
+    } catch (e: any) {
+      setPayError(e.message || 'No se pudo registrar el gasto.');
+    } finally {
+      setPaying(false);
+    }
+  }
 
   const summary = useMemo(() => {
     const totalLimit = budgets.data.reduce((s, b) => s + Number(b.limit_amount), 0);
@@ -176,6 +317,7 @@ export default function BudgetsScreen() {
                 { icon: 'pricetag' as const, text: 'Ponle nombre: Netflix, Spotify, Gym...' },
                 { icon: 'grid' as const, text: 'Elige la categoría de gasto' },
                 { icon: 'cash' as const, text: 'Puedes tener varios en la misma categoría' },
+                { icon: 'refresh' as const, text: 'Cada mes se reinician en cero (los ahorros no)' },
               ].map((tip, i) => (
                 <View key={tip.icon} style={[styles.tipRow, i > 0 && styles.tipRowBorder]}>
                   <View style={[styles.tipIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
@@ -253,7 +395,7 @@ export default function BudgetsScreen() {
             </FadeInView>
 
             {budgets.data.map((b, i) => (
-              <BudgetCard key={b.id} budget={b} index={i + 4} />
+              <BudgetCard key={b.id} budget={b} index={i + 4} onPay={() => openPay(b)} />
             ))}
 
             <FadeInView index={budgets.data.length + 5}>
@@ -363,6 +505,158 @@ export default function BudgetsScreen() {
           </Animated.View>
         </View>
       </Modal>
+
+      <Modal visible={!!payBudget} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.modalKeyboard}
+          >
+            <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.modalWrap}>
+              <BrutalBox shadow={5} contentStyle={[styles.modalContent, styles.payModalContent]}>
+                <View style={[styles.payModalAccent, brutalBorder(2)]} />
+                <View style={styles.payModalHeader}>
+                  <View style={[styles.modalIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                    <Ionicons name="card-outline" size={22} color={colors.ink} />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <SText variant="title3" style={{ fontWeight: '800', textTransform: 'uppercase' }}>
+                      Registrar gasto
+                    </SText>
+                    <SText variant="caption2" color={colors.textMuted} numberOfLines={1}>
+                      {payBudget?.title} · {payBudget?.category_name}
+                    </SText>
+                  </View>
+                  <AnimatedPressable onPress={closePay} style={[styles.payCloseBtn, brutalBorder(2)]}>
+                    <Ionicons name="close" size={18} color={colors.ink} />
+                  </AnimatedPressable>
+                </View>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.payModalScroll}
+                >
+                  {payError ? <AuthFeedback type="error" title="Error" message={payError} /> : null}
+
+                  <View style={styles.payStatsRow}>
+                    <BrutalBox
+                      bg={colors.bgAlt}
+                      radius={radii.md}
+                      shadow={3}
+                      style={styles.payStatBox}
+                      contentStyle={styles.payStatInner}
+                    >
+                      <View style={[styles.payStatIcon, brutalBorder(2), { backgroundColor: colors.surface }]}>
+                        <Ionicons name="wallet-outline" size={14} color={colors.ink} />
+                      </View>
+                      <SText variant="caption2" color={colors.textMuted} style={styles.payStatLabel}>
+                        Balance
+                      </SText>
+                      <SText variant="callout" style={{ fontWeight: '800' }} numberOfLines={1}>
+                        {balanceLoading ? '...' : formatCOP(accountBalance ?? 0)}
+                      </SText>
+                    </BrutalBox>
+                    <BrutalBox
+                      bg={colors.incomeBg}
+                      radius={radii.md}
+                      shadow={3}
+                      style={styles.payStatBox}
+                      contentStyle={styles.payStatInner}
+                    >
+                      <View style={[styles.payStatIcon, brutalBorder(2), { backgroundColor: colors.surface }]}>
+                        <Ionicons name="pie-chart-outline" size={14} color="#15803D" />
+                      </View>
+                      <SText variant="caption2" color={colors.textMuted} style={styles.payStatLabel}>
+                        En presupuesto
+                      </SText>
+                      <SText variant="callout" color="#15803D" style={{ fontWeight: '800' }} numberOfLines={1}>
+                        {formatCOP(payRemaining)}
+                      </SText>
+                    </BrutalBox>
+                  </View>
+
+                  <SText variant="caption1" color={colors.textMuted} style={styles.payFieldLabel}>
+                    Monto del gasto
+                  </SText>
+                  <BrutalBox bg={colors.yellow} radius={radii.md} shadow={3} contentStyle={styles.payAmountCard}>
+                    <View style={styles.payAmountRow}>
+                      <SText variant="title2" style={{ fontWeight: '800' }}>$</SText>
+                      <TextInput
+                        style={styles.payInput}
+                        placeholder="0"
+                        placeholderTextColor={colors.textMuted}
+                        value={payAmount}
+                        onChangeText={(t) => setPayAmount(t.replace(/[^0-9]/g, ''))}
+                        keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
+                        autoFocus
+                      />
+                      <SText variant="caption1" color={colors.textSecondary}>COP</SText>
+                    </View>
+                    {payAmount.length > 0 ? (
+                      <SText
+                        variant="footnote"
+                        color={exceedsBalance ? colors.expense : colors.textSecondary}
+                        style={{ textAlign: 'center', fontWeight: exceedsBalance ? '700' : '500' }}
+                      >
+                        {exceedsBalance
+                          ? 'Supera tu balance disponible'
+                          : `${parseInt(payAmount, 10).toLocaleString('es-CO')} pesos`}
+                      </SText>
+                    ) : null}
+                  </BrutalBox>
+
+                  {payRemaining > 0 && payAmount !== String(Math.round(payRemaining)) ? (
+                    <AnimatedPressable
+                      onPress={() => setPayAmount(String(Math.round(payRemaining)))}
+                      style={{ marginBottom: spacing.lg }}
+                    >
+                      <BrutalBox bg={colors.surfaceAlt} radius={radii.pill} shadow={3} contentStyle={styles.quickFillChip}>
+                        <Ionicons name="flash" size={14} color={colors.ink} />
+                        <SText variant="caption2" style={{ fontWeight: '800' }}>
+                          Usar {formatCOP(payRemaining)} del presupuesto
+                        </SText>
+                      </BrutalBox>
+                    </AnimatedPressable>
+                  ) : null}
+
+                  <SText variant="caption1" color={colors.textMuted} style={styles.payFieldLabel}>
+                    Nota opcional
+                  </SText>
+                  <TextInput
+                    style={[styles.payNoteInput, brutalBorder(2)]}
+                    value={payNote}
+                    onChangeText={setPayNote}
+                    placeholder="Detalle del pago..."
+                    placeholderTextColor={colors.textMuted}
+                  />
+
+                  <BrutalButton
+                    label={paying ? 'Guardando...' : 'Confirmar gasto'}
+                    variant="pink"
+                    onPress={handlePay}
+                    disabled={!payAmount || paying || exceedsBalance || balanceLoading}
+                    style={{ marginTop: spacing.md }}
+                  />
+                  <AnimatedPressable onPress={closePay} style={styles.modalCancel}>
+                    <SText variant="footnote" style={{ fontWeight: '700' }}>Cancelar</SText>
+                  </AnimatedPressable>
+                </ScrollView>
+              </BrutalBox>
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <BudgetMonthReviewModal
+        visible={showReviewModal}
+        month={currentMonth}
+        budgets={budgets.data}
+        rolledFromMonth={budgets.rolledFromMonth}
+        saving={reviewSaving}
+        onConfirm={handleReviewConfirm}
+        onDismiss={handleReviewDismiss}
+      />
     </BrutalScreen>
   );
 }
@@ -464,8 +758,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalWrap: { padding: spacing.xl },
+  modalKeyboard: { width: '100%' },
+  modalWrap: { padding: spacing.xl, paddingBottom: spacing.lg },
   modalContent: { padding: spacing.xl },
+  payModalContent: { paddingTop: spacing.lg, overflow: 'visible' as const },
+  payModalAccent: {
+    position: 'absolute',
+    top: 0,
+    left: spacing.xl,
+    right: spacing.xl,
+    height: 6,
+    backgroundColor: colors.yellow,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderTopLeftRadius: radii.sm,
+    borderTopRightRadius: radii.sm,
+  },
+  payModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    paddingTop: spacing.xs,
+  },
+  payCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bgAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  payModalScroll: { paddingBottom: spacing.sm },
   modalHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
   modalIcon: {
     width: 48,
@@ -525,4 +849,70 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   modalCancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
+  payStatsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  payStatBox: { flex: 1, minWidth: 0 },
+  payStatInner: { padding: spacing.md },
+  payStatIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  payStatLabel: {
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  payFieldLabel: {
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  payAmountCard: {
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+  },
+  payAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    width: '100%',
+    marginBottom: spacing.xs,
+  },
+  payInput: {
+    flex: 1,
+    maxWidth: 200,
+    color: colors.ink,
+    fontSize: 32,
+    fontWeight: '800',
+    paddingVertical: 8,
+    textAlign: 'center',
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
+  },
+  quickFillChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+  },
+  payNoteInput: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    color: colors.ink,
+    fontSize: 15,
+    marginBottom: spacing.md,
+  },
 });

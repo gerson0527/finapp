@@ -6,7 +6,11 @@ import {
   Modal,
   TextInput,
   Platform,
+  KeyboardAvoidingView,
+  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { Stack } from 'expo-router';
@@ -15,7 +19,9 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  getCategoryUsage,
   Category,
+  CategoryUsage,
 } from '@/services/categoryService';
 import SText from '@/src/components/SText';
 import SkeletonLoader from '@/src/components/SkeletonLoader';
@@ -30,9 +36,8 @@ import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 const presetIcons = [
   'restaurant', 'car', 'film', 'cart', 'bag', 'play-circle',
-  'home', 'flash', 'medical', 'fitness', 'school', 'gift',
-  'cash', 'business', 'laptop', 'wallet', 'card', 'shirt',
-  'cafe', 'airplane', 'heart', 'book', 'musical-notes', 'pizza',
+  'home', 'fitness', 'cash', 'business', 'laptop', 'wallet',
+  'card', 'cafe', 'airplane', 'heart', 'medical', 'school',
 ];
 
 const presetColors = [
@@ -139,6 +144,10 @@ function CategorySection({
 
 export default function CategoriesScreen() {
   const { triggerRefresh } = useApp();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const modalMaxHeight = Math.min(windowHeight * 0.86, Dimensions.get('window').height - insets.top - 12);
+  const modalScrollMaxHeight = modalMaxHeight - 148;
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -151,6 +160,8 @@ export default function CategoriesScreen() {
     title?: string;
     message: string;
   } | null>(null);
+  const [categoryUsage, setCategoryUsage] = useState<CategoryUsage | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -167,12 +178,14 @@ export default function CategoriesScreen() {
     loadCategories();
   }, [loadCategories]);
 
-  const expenseCats = categories.filter((c) => c.type === 'expense' || c.type === 'both');
-  const incomeCats = categories.filter((c) => c.type === 'income' || c.type === 'both');
+  const expenseCats = categories.filter((c) => c.type === 'expense');
+  const incomeCats = categories.filter((c) => c.type === 'income');
 
   const openCreate = (type: CategoryType) => {
     setEditing(null);
     setForm(emptyForm(type));
+    setCategoryUsage(null);
+    setUsageLoading(false);
     setModalVisible(true);
   };
 
@@ -184,7 +197,13 @@ export default function CategoriesScreen() {
       icon: category.icon,
       color: category.color,
     });
+    setCategoryUsage(null);
+    setUsageLoading(true);
     setModalVisible(true);
+    getCategoryUsage(category.id)
+      .then(setCategoryUsage)
+      .catch(() => setCategoryUsage({ transactionCount: 0, budgetCount: 0, inUse: true }))
+      .finally(() => setUsageLoading(false));
   };
 
   const closeModal = () => {
@@ -193,6 +212,8 @@ export default function CategoriesScreen() {
     setForm(emptyForm());
     setConfirmDelete(false);
     setFormFeedback(null);
+    setCategoryUsage(null);
+    setUsageLoading(false);
   };
 
   async function handleSave() {
@@ -233,6 +254,31 @@ export default function CategoriesScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function tryOpenDeleteConfirm() {
+    if (!editing) return;
+    if (categoryUsage?.inUse) {
+      const parts: string[] = [];
+      if (categoryUsage.transactionCount > 0) {
+        parts.push(
+          `${categoryUsage.transactionCount} transacción${categoryUsage.transactionCount > 1 ? 'es' : ''} en tu historial`
+        );
+      }
+      if (categoryUsage.budgetCount > 0) {
+        parts.push(
+          `${categoryUsage.budgetCount} presupuesto${categoryUsage.budgetCount > 1 ? 's' : ''}`
+        );
+      }
+      setFormFeedback({
+        type: 'error',
+        title: 'Categoría en uso',
+        message: `Está en uso (${parts.join(' y ')}). No se puede eliminar si alguna vez se usó.`,
+      });
+      return;
+    }
+    setFormFeedback(null);
+    setConfirmDelete(true);
   }
 
   async function handleDeleteConfirm() {
@@ -318,141 +364,184 @@ export default function CategoriesScreen() {
 
         <Modal visible={modalVisible} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <Animated.View entering={SlideInDown.springify().damping(20)} style={{ padding: 20 }}>
-              <BrutalBox contentStyle={styles.modalContent}>
-                <SText variant="title3" style={{ fontWeight: '700', marginBottom: spacing.lg }}>
-                  {confirmDelete ? '¿Eliminar categoría?' : editing ? 'Editar categoría' : 'Nueva categoría'}
-                </SText>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={styles.modalKeyboard}
+            >
+              <Animated.View
+                entering={SlideInDown.springify().damping(20)}
+                style={[styles.modalWrap, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
+              >
+                <BrutalBox
+                  shadow={5}
+                  style={{ maxHeight: modalMaxHeight }}
+                  contentStyle={[styles.modalBody, { maxHeight: modalMaxHeight }]}
+                >
+                  <View style={styles.modalHeader}>
+                    <View style={[styles.previewIcon, brutalBorder(2), { backgroundColor: form.color }]}>
+                      <Ionicons name={form.icon as any} size={20} color={colors.ink} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <SText variant="callout" style={{ fontWeight: '800', textTransform: 'uppercase' }} numberOfLines={1}>
+                        {confirmDelete ? 'Eliminar' : editing ? 'Editar categoría' : 'Nueva categoría'}
+                      </SText>
+                      {!confirmDelete ? (
+                        <SText variant="caption2" color={colors.textMuted} numberOfLines={1}>
+                          {form.name.trim() || 'Sin nombre'} · {form.type === 'expense' ? 'Gasto' : 'Ingreso'}
+                        </SText>
+                      ) : null}
+                    </View>
+                    <AnimatedPressable onPress={closeModal} style={[styles.modalCloseBtn, brutalBorder(2)]}>
+                      <Ionicons name="close" size={18} color={colors.ink} />
+                    </AnimatedPressable>
+                  </View>
 
-                {formFeedback ? (
-                  <AuthFeedback
-                    type={formFeedback.type}
-                    title={formFeedback.title}
-                    message={formFeedback.message}
-                  />
-                ) : null}
+                  {formFeedback ? (
+                    <AuthFeedback
+                      type={formFeedback.type}
+                      title={formFeedback.title}
+                      message={formFeedback.message}
+                    />
+                  ) : null}
 
-                {confirmDelete && editing ? (
-                  <View>
-                    <SText variant="body" style={{ marginBottom: spacing.lg }}>
-                      ¿Eliminar "{editing.name}"? Solo se bloquea si ya tienes transacciones con esta categoría.
-                    </SText>
-                    <View style={styles.modalActions}>
+                  {confirmDelete && editing ? (
+                    <View style={styles.modalFooter}>
+                      <SText variant="body" style={{ marginBottom: spacing.md, lineHeight: 20 }}>
+                        ¿Eliminar "{editing.name}"?
+                      </SText>
+                      <BrutalButton
+                        label={saving ? 'Eliminando...' : 'Sí, eliminar'}
+                        variant="pink"
+                        onPress={handleDeleteConfirm}
+                        disabled={saving}
+                        small
+                      />
                       <AnimatedPressable
-                        style={[styles.cancelBtn, brutalBorder(2)]}
                         onPress={() => setConfirmDelete(false)}
                         disabled={saving}
+                        style={styles.modalCancelLink}
                       >
-                        <SText variant="callout" style={{ fontWeight: '600' }}>Cancelar</SText>
+                        <SText variant="footnote" style={{ fontWeight: '700' }}>Volver</SText>
                       </AnimatedPressable>
-                      <View style={{ flex: 1 }}>
+                    </View>
+                  ) : (
+                    <>
+                      <ScrollView
+                        style={[styles.modalScrollArea, { maxHeight: modalScrollMaxHeight }]}
+                        contentContainerStyle={styles.modalScrollContent}
+                        showsVerticalScrollIndicator
+                        keyboardShouldPersistTaps="handled"
+                        nestedScrollEnabled
+                      >
+                        <View style={styles.typeRow}>
+                          {([
+                            { label: 'Gasto', value: 'expense' as const, bg: colors.expenseBg },
+                            { label: 'Ingreso', value: 'income' as const, bg: colors.incomeBg },
+                          ]).map((opt) => (
+                            <AnimatedPressable
+                              key={opt.value}
+                              style={[
+                                styles.typeChip,
+                                brutalBorder(2),
+                                { backgroundColor: form.type === opt.value ? opt.bg : colors.surface },
+                              ]}
+                              onPress={() => setForm((f) => ({ ...f, type: opt.value }))}
+                            >
+                              <SText variant="caption1" style={{ fontWeight: '800' }}>{opt.label}</SText>
+                            </AnimatedPressable>
+                          ))}
+                        </View>
+
+                        <SText variant="caption2" color={colors.textMuted} style={styles.fieldLabel}>Nombre</SText>
+                        <TextInput
+                          style={[styles.input, brutalBorder(2)]}
+                          placeholder="Ej. Banco, Netflix..."
+                          placeholderTextColor={colors.textMuted}
+                          value={form.name}
+                          onChangeText={(name) => setForm((f) => ({ ...f, name }))}
+                        />
+
+                        <SText variant="caption2" color={colors.textMuted} style={styles.fieldLabel}>Icono</SText>
+                        <View style={styles.iconGrid}>
+                          {presetIcons.map((ic) => (
+                            <AnimatedPressable
+                              key={ic}
+                              style={[
+                                styles.iconItem,
+                                brutalBorder(2),
+                                form.icon === ic && styles.iconItemSelected,
+                              ]}
+                              onPress={() => setForm((f) => ({ ...f, icon: ic }))}
+                            >
+                              <Ionicons name={ic as any} size={18} color={colors.ink} />
+                            </AnimatedPressable>
+                          ))}
+                        </View>
+
+                        <SText variant="caption2" color={colors.textMuted} style={styles.fieldLabel}>Color</SText>
+                        <View style={styles.colorGrid}>
+                          {presetColors.map((clr) => (
+                            <AnimatedPressable
+                              key={clr}
+                              style={[
+                                styles.colorItem,
+                                { backgroundColor: clr },
+                                brutalBorder(2),
+                                form.color === clr && styles.colorItemSelected,
+                              ]}
+                              onPress={() => setForm((f) => ({ ...f, color: clr }))}
+                            />
+                          ))}
+                        </View>
+
+                        {editing && categoryUsage?.inUse ? (
+                          <BrutalBox bg={colors.surfaceAlt} radius={radii.md} shadow={2} contentStyle={styles.usageHint}>
+                            <Ionicons name="lock-closed" size={16} color={colors.textMuted} />
+                            <SText variant="caption2" color={colors.textSecondary} style={{ flex: 1, lineHeight: 18 }}>
+                              {[
+                                categoryUsage.transactionCount > 0
+                                  ? `${categoryUsage.transactionCount} transacción${categoryUsage.transactionCount > 1 ? 'es' : ''} en el historial`
+                                  : null,
+                                categoryUsage.budgetCount > 0
+                                  ? `${categoryUsage.budgetCount} presupuesto${categoryUsage.budgetCount > 1 ? 's' : ''}`
+                                  : null,
+                              ].filter(Boolean).join(' · ')}
+                              . No se puede eliminar una categoría en uso.
+                            </SText>
+                          </BrutalBox>
+                        ) : null}
+                      </ScrollView>
+
+                      <View style={styles.modalFooter}>
                         <BrutalButton
-                          label={saving ? 'Eliminando...' : 'Sí, eliminar'}
-                          onPress={handleDeleteConfirm}
-                          disabled={saving}
+                          label={saving ? 'Guardando...' : editing ? 'Guardar' : 'Crear'}
+                          variant="pink"
+                          onPress={handleSave}
+                          disabled={!form.name.trim() || saving}
                           small
                         />
+                        <View style={styles.footerLinks}>
+                          <AnimatedPressable onPress={closeModal} style={styles.footerLinkBtn}>
+                            <SText variant="caption2" style={{ fontWeight: '700' }}>Cancelar</SText>
+                          </AnimatedPressable>
+                          {editing && !usageLoading && !categoryUsage?.inUse ? (
+                            <AnimatedPressable
+                              onPress={tryOpenDeleteConfirm}
+                              disabled={saving}
+                              style={styles.footerLinkBtn}
+                            >
+                              <SText variant="caption2" color={colors.expense} style={{ fontWeight: '700' }}>
+                                Eliminar
+                              </SText>
+                            </AnimatedPressable>
+                          ) : null}
+                        </View>
                       </View>
-                    </View>
-                  </View>
-                ) : (
-                <View>
-                <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Tipo</SText>
-                <View style={styles.typeRow}>
-                  {([
-                    { label: 'Gasto', value: 'expense' as const, bg: colors.expenseBg },
-                    { label: 'Ingreso', value: 'income' as const, bg: colors.incomeBg },
-                  ]).map((opt) => (
-                    <AnimatedPressable
-                      key={opt.value}
-                      style={[
-                        styles.typeChip,
-                        brutalBorder(2),
-                        { backgroundColor: form.type === opt.value ? opt.bg : colors.surface },
-                      ]}
-                      onPress={() => setForm((f) => ({ ...f, type: opt.value }))}
-                    >
-                      <SText variant="callout" style={{ fontWeight: '700' }}>{opt.label}</SText>
-                    </AnimatedPressable>
-                  ))}
-                </View>
-
-                <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Nombre</SText>
-                <TextInput
-                  style={[styles.input, brutalBorder(2)]}
-                  placeholder="Ej. Restaurantes, Nómina..."
-                  placeholderTextColor={colors.textMuted}
-                  value={form.name}
-                  onChangeText={(name) => setForm((f) => ({ ...f, name }))}
-                />
-
-                <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Icono</SText>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }}>
-                  <View style={styles.iconRow}>
-                    {presetIcons.map((ic) => (
-                      <AnimatedPressable
-                        key={ic}
-                        style={[
-                          styles.iconItem,
-                          brutalBorder(2),
-                          form.icon === ic && { backgroundColor: colors.yellow },
-                        ]}
-                        onPress={() => setForm((f) => ({ ...f, icon: ic }))}
-                      >
-                        <Ionicons name={ic as any} size={22} color={colors.ink} />
-                      </AnimatedPressable>
-                    ))}
-                  </View>
-                </ScrollView>
-
-                <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Color</SText>
-                <View style={styles.iconRow}>
-                  {presetColors.map((clr) => (
-                    <AnimatedPressable
-                      key={clr}
-                      style={[
-                        styles.colorItem,
-                        { backgroundColor: clr },
-                        brutalBorder(2),
-                        form.color === clr && { borderColor: colors.ink, borderWidth: 3 },
-                      ]}
-                      onPress={() => setForm((f) => ({ ...f, color: clr }))}
-                    />
-                  ))}
-                </View>
-
-                <View style={styles.modalActions}>
-                  <AnimatedPressable style={[styles.cancelBtn, brutalBorder(2)]} onPress={closeModal}>
-                    <SText variant="callout" style={{ fontWeight: '600' }}>Cancelar</SText>
-                  </AnimatedPressable>
-                  <View style={{ flex: 1 }}>
-                    <BrutalButton
-                      label={saving ? 'Guardando...' : editing ? 'Guardar' : 'Crear'}
-                      onPress={handleSave}
-                      disabled={!form.name.trim() || saving}
-                      small
-                    />
-                  </View>
-                </View>
-
-                {editing && (
-                  <AnimatedPressable
-                    onPress={() => {
-                      setFormFeedback(null);
-                      setConfirmDelete(true);
-                    }}
-                    disabled={saving}
-                    style={[styles.deleteBtn, brutalBorder(2)]}
-                  >
-                    <SText variant="callout" color={colors.expense} style={{ fontWeight: '700' }}>
-                      Eliminar categoría
-                    </SText>
-                  </AnimatedPressable>
-                )}
-                </View>
-                )}
-              </BrutalBox>
-            </Animated.View>
+                    </>
+                  )}
+                </BrutalBox>
+              </Animated.View>
+            </KeyboardAvoidingView>
           </View>
         </Modal>
       </View>
@@ -486,56 +575,129 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.ink,
+    ...brutalBorder(2),
   },
   badge: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.pill,
   },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalContent: { padding: spacing.xl, maxHeight: '90%' },
-  fieldLabel: { marginBottom: 6, marginTop: spacing.sm, textTransform: 'uppercase', fontWeight: '600' },
-  typeRow: { flexDirection: 'row', gap: 10, marginBottom: spacing.sm },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalKeyboard: { width: '100%', maxHeight: '100%' },
+  modalWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  modalBody: {
+    padding: spacing.md,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.bgAlt,
+  },
+  previewIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bgAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalScrollArea: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  modalScrollContent: {
+    paddingBottom: spacing.xs,
+  },
+  modalFooter: {
+    borderTopWidth: 2,
+    borderTopColor: colors.bgAlt,
+    paddingTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  footerLinkBtn: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  fieldLabel: {
+    marginBottom: 4,
+    marginTop: spacing.xs,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  typeRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.sm },
   typeChip: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: radii.md,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
     alignItems: 'center',
     backgroundColor: colors.surface,
   },
   input: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
     color: colors.ink,
     fontSize: 15,
+    marginBottom: spacing.sm,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
   },
-  iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
   iconItem: {
-    width: 46,
-    height: 46,
+    width: 36,
+    height: 36,
     borderRadius: radii.sm,
     backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  colorItem: { width: 36, height: 36, borderRadius: 18 },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: spacing.lg, alignItems: 'center' },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
+  iconItemSelected: {
+    backgroundColor: colors.yellow,
+    borderWidth: 3,
+    borderColor: colors.ink,
   },
-  deleteBtn: {
-    marginTop: spacing.md,
-    paddingVertical: 14,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    backgroundColor: colors.expenseBg,
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.xs,
+  },
+  colorItem: { width: 32, height: 32, borderRadius: 16 },
+  colorItemSelected: { borderWidth: 3, borderColor: colors.ink },
+  modalCancelLink: {
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  usageHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    marginTop: spacing.xs,
   },
 });

@@ -10,6 +10,8 @@ import {
 import { useApp } from '@/src/context/AppContext';
 import BrutalScreen from '@/src/components/BrutalScreen';
 import TransactionForm from '@/src/components/TransactionForm';
+import TransactionReadOnlyView from '@/src/components/TransactionReadOnlyView';
+import { isEditableTransaction } from '@/lib/transactionHelpers';
 import SText from '@/src/components/SText';
 import { colors, spacing } from '@/src/constants/theme';
 
@@ -29,12 +31,14 @@ export default function EditTransactionScreen() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const readOnly = transaction ? !isEditableTransaction(transaction) : false;
+
   return (
     <>
       <Stack.Screen
         options={{
-          headerShown: true,
-          headerTitle: 'Editar transacción',
+          headerShown: !readOnly,
+          headerTitle: readOnly ? 'Detalle' : 'Editar transacción',
           headerStyle: { backgroundColor: colors.bg },
           headerTintColor: colors.ink,
           headerShadowVisible: false,
@@ -49,6 +53,16 @@ export default function EditTransactionScreen() {
           <View style={styles.center}>
             <SText variant="body" color={colors.error}>{error || 'No encontrada'}</SText>
           </View>
+        ) : readOnly ? (
+          <TransactionReadOnlyView
+            transaction={transaction}
+            onClose={() => router.back()}
+            onDelete={async () => {
+              await deleteTransaction(transaction.id);
+              triggerRefresh();
+              router.back();
+            }}
+          />
         ) : (
           <TransactionForm
             title="Editar transacción"

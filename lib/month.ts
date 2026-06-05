@@ -18,6 +18,15 @@ export function formatMonthLabel(month: string, pattern = 'MMMM yyyy'): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+/** Fecha por defecto al registrar un gasto en un mes de presupuesto */
+export function getDefaultDateForMonth(month: string): Date {
+  const now = new Date();
+  const current = getCurrentMonth();
+  if (month === current) return now;
+  const [year, m] = month.split('-').map(Number);
+  return new Date(year, m, 0);
+}
+
 export function getRecentMonths(count = 12): { value: string; label: string }[] {
   const now = new Date();
   const months: { value: string; label: string }[] = [];

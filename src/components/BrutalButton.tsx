@@ -12,7 +12,6 @@ interface BrutalButtonProps {
   style?: StyleProp<ViewStyle>;
   variant?: 'yellow' | 'white' | 'pink';
   disabled?: boolean;
-  disabled?: boolean;
   small?: boolean;
 }
 

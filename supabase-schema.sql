@@ -115,18 +115,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 8. FUNCIÓN: agregar contribución a meta
-CREATE OR REPLACE FUNCTION add_savings_contribution(
-  goal_id UUID,
-  contribution_amount DECIMAL
-) RETURNS SETOF savings_goals AS $$
-BEGIN
-  UPDATE savings_goals
-  SET saved_amount = saved_amount + contribution_amount
-  WHERE id = goal_id;
-  RETURN QUERY SELECT * FROM savings_goals WHERE id = goal_id;
-END;
-$$ LANGUAGE plpgsql;
+-- 8. FUNCIÓN: aporte a meta (descuenta balance neto + registra gasto)
+-- Ver supabase/migrations/20250608_savings_from_balance.sql
 
 -- ============================================================
 -- SEED DATA

@@ -9,7 +9,7 @@ import BrutalBox from './BrutalBox';
 import AnimatedPressable from './AnimatedPressable';
 import FadeInView from './FadeInView';
 import ProgressBar from './ProgressBar';
-import { colors, radii, spacing } from '@/src/constants/theme';
+import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 interface SavingsGoalCardProps {
   goal: SavingsGoal;
@@ -18,75 +18,91 @@ interface SavingsGoalCardProps {
 }
 
 export default function SavingsGoalCard({ goal, onContribute, index = 0 }: SavingsGoalCardProps) {
-  const percentage = goal.target_amount > 0
-    ? Math.min((goal.saved_amount / goal.target_amount) * 100, 100)
-    : 0;
+  const percentage =
+    goal.target_amount > 0
+      ? Math.min((goal.saved_amount / goal.target_amount) * 100, 100)
+      : 0;
 
   const remaining = Math.max(goal.target_amount - goal.saved_amount, 0);
+  const completed = percentage >= 100;
+  const accent = goal.color || colors.yellowDark;
 
   return (
     <FadeInView index={index}>
-      <BrutalBox style={{ marginBottom: spacing.lg }} contentStyle={styles.card}>
+      <BrutalBox
+        bg={completed ? colors.incomeBg : colors.surface}
+        radius={radii.lg}
+        shadow={4}
+        style={{ marginBottom: spacing.md }}
+        contentStyle={styles.card}
+      >
         <View style={styles.header}>
-          <View style={[styles.iconBadge, { backgroundColor: goal.color }]}>
+          <View style={[styles.iconBadge, brutalBorder(2), { backgroundColor: accent }]}>
             <Ionicons name={(goal.icon as any) || 'flag'} size={22} color={colors.ink} />
           </View>
-          <View style={{ flex: 1 }}>
-            <SText variant="title3" style={{ fontWeight: '700' }}>{goal.title}</SText>
+          <View style={styles.headerText}>
+            <SText variant="body" style={{ fontWeight: '800' }} numberOfLines={1}>
+              {goal.title}
+            </SText>
             {goal.subtitle ? (
-              <View style={[styles.subtitlePill, { backgroundColor: `${goal.color}33` }]}>
-                <SText variant="caption2" style={{ fontWeight: '600' }}>{goal.subtitle}</SText>
+              <View style={[styles.subtitlePill, brutalBorder(2), { backgroundColor: colors.surfaceAlt }]}>
+                <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>
+                  {goal.subtitle}
+                </SText>
               </View>
             ) : null}
           </View>
-        </View>
-
-        <View style={styles.chartRow}>
-          <DonutChart
-            percentage={percentage}
-            size={120}
-            strokeWidth={12}
-            color={goal.color}
-            bgColor={colors.bgAlt}
-          />
-          <View style={styles.statsCol}>
-            <View style={styles.statBlock}>
-              <SText variant="caption2" color={colors.textMuted}>Ahorrado</SText>
-              <SText variant="headline" color={colors.ink} style={{ fontWeight: '700', marginTop: 4 }}>
-                {formatCOP(goal.saved_amount)}
-              </SText>
-            </View>
-            <View style={styles.statBlock}>
-              <SText variant="caption2" color={colors.textMuted}>Meta</SText>
-              <SText variant="headline" style={{ fontWeight: '700', marginTop: 4 }}>
-                {formatCOP(goal.target_amount)}
-              </SText>
-            </View>
-            <View style={styles.statBlock}>
-              <SText variant="caption2" color={colors.textMuted}>Falta</SText>
-              <SText variant="subhead" color={colors.textSecondary} style={{ fontWeight: '600', marginTop: 4 }}>
-                {formatCOP(remaining)}
-              </SText>
-            </View>
+          <View style={[styles.pctBadge, brutalBorder(2), { backgroundColor: accent }]}>
+            <SText variant="headline" style={{ fontWeight: '800' }}>{Math.round(percentage)}%</SText>
           </View>
         </View>
 
-        <ProgressBar percentage={percentage} color={goal.color} height={10} />
-
-        <View style={{ marginTop: spacing.lg }}>
-          <AnimatedPressable onPress={onContribute}>
-            <BrutalBox
-              bg={goal.color}
-              shadow={3}
-              radius={radii.pill}
-              contentStyle={styles.contributeBtn}
-            >
-              <SText variant="callout" style={{ fontWeight: '700', textTransform: 'uppercase' }}>
-                Aportar a meta
+        <View style={styles.body}>
+          <DonutChart
+            percentage={percentage}
+            size={108}
+            strokeWidth={11}
+            color={accent}
+            bgColor={colors.bgAlt}
+          />
+          <View style={styles.statsCol}>
+            <BrutalBox bg={colors.surfaceAlt} radius={radii.sm} shadow={2} contentStyle={styles.statTile}>
+              <SText variant="caption2" color={colors.textMuted} style={styles.statLabel}>AHORRADO</SText>
+              <SText variant="callout" style={{ fontWeight: '800', marginTop: 4 }}>
+                {formatCOP(goal.saved_amount)}
               </SText>
             </BrutalBox>
-          </AnimatedPressable>
+            <BrutalBox bg={colors.surface} radius={radii.sm} shadow={2} contentStyle={styles.statTile}>
+              <SText variant="caption2" color={colors.textMuted} style={styles.statLabel}>
+                {completed ? 'COMPLETADA' : 'FALTA'}
+              </SText>
+              <SText
+                variant="callout"
+                color={completed ? '#15803D' : colors.ink}
+                style={{ fontWeight: '800', marginTop: 4 }}
+              >
+                {completed ? '¡Meta lograda!' : formatCOP(remaining)}
+              </SText>
+            </BrutalBox>
+          </View>
         </View>
+
+        <View style={styles.metaRow}>
+          <SText variant="caption2" color={colors.textMuted}>
+            Meta: <SText variant="caption2" style={{ fontWeight: '800' }}>{formatCOP(goal.target_amount)}</SText>
+          </SText>
+        </View>
+
+        <ProgressBar percentage={percentage} color={accent} height={12} />
+
+        {!completed && onContribute ? (
+          <AnimatedPressable onPress={onContribute} style={{ marginTop: spacing.md }}>
+            <BrutalBox bg={colors.yellow} radius={radii.pill} shadow={3} contentStyle={styles.contributeBtn}>
+              <Ionicons name="add-circle" size={20} color={colors.ink} />
+              <SText variant="callout" style={{ fontWeight: '800' }}>Aportar</SText>
+            </BrutalBox>
+          </AnimatedPressable>
+        ) : null}
       </BrutalBox>
     </FadeInView>
   );
@@ -94,32 +110,48 @@ export default function SavingsGoalCard({ goal, onContribute, index = 0 }: Savin
 
 const styles = StyleSheet.create({
   card: { padding: spacing.lg },
-  header: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.lg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
   iconBadge: {
     width: 48,
     height: 48,
     borderRadius: radii.sm,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.ink,
   },
+  headerText: { flex: 1, minWidth: 0 },
   subtitlePill: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radii.pill,
     marginTop: 6,
-    borderWidth: 2,
-    borderColor: colors.ink,
+    maxWidth: '100%',
   },
-  chartRow: {
+  pctBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.sm,
+  },
+  body: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.lg,
+    gap: spacing.md,
     marginBottom: spacing.md,
   },
-  statsCol: { flex: 1, gap: spacing.md },
-  statBlock: {},
-  contributeBtn: { paddingVertical: 14, alignItems: 'center' },
+  statsCol: { flex: 1, gap: spacing.sm },
+  statTile: { padding: spacing.md },
+  statLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
+  metaRow: { marginBottom: spacing.sm },
+  contributeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: 14,
+  },
 });

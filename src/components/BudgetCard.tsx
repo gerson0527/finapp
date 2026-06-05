@@ -7,14 +7,16 @@ import SText from '@/src/components/SText';
 import ProgressBar from './ProgressBar';
 import BrutalBox from './BrutalBox';
 import FadeInView from './FadeInView';
+import AnimatedPressable from './AnimatedPressable';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 interface BudgetCardProps {
   budget: BudgetWithSpent;
   index?: number;
+  onPay?: () => void;
 }
 
-export default function BudgetCard({ budget, index = 0 }: BudgetCardProps) {
+export default function BudgetCard({ budget, index = 0, onPay }: BudgetCardProps) {
   const pct = Number(budget.percentage);
   const isExceeded = pct >= 100;
   const isWarning = pct >= 80 && pct < 100;
@@ -77,6 +79,15 @@ export default function BudgetCard({ budget, index = 0 }: BudgetCardProps) {
             {formatCOP(limit)}
           </SText>
         </View>
+
+        {onPay ? (
+          <AnimatedPressable onPress={onPay} style={styles.payWrap}>
+            <View style={[styles.payBtn, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+              <Ionicons name="card-outline" size={16} color={colors.ink} />
+              <SText variant="caption1" style={{ fontWeight: '800' }}>Registrar gasto</SText>
+            </View>
+          </AnimatedPressable>
+        ) : null}
       </BrutalBox>
     </FadeInView>
   );
@@ -107,4 +118,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   footer: { marginTop: spacing.sm },
+  payWrap: { marginTop: spacing.md },
+  payBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: radii.pill,
+  },
 });

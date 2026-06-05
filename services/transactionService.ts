@@ -12,6 +12,7 @@ export interface Transaction {
   date: string;
   time: string;
   note?: string;
+  budget_id?: string | null;
   category?: {
     name: string;
     icon: string;
@@ -28,6 +29,7 @@ export interface CreateTransactionDTO {
   date: string;
   time: string;
   note?: string;
+  budget_id?: string;
 }
 
 export type UpdateTransactionDTO = CreateTransactionDTO;
@@ -99,6 +101,7 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
       date: dto.date,
       time: dto.time,
       note: dto.note,
+      budget_id: dto.budget_id ?? null,
     })
     .select('*, category:categories(name, icon, color)')
     .single();

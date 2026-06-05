@@ -6,15 +6,17 @@ import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useApp } from '@/src/context/AppContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { getCategories } from '@/services/categoryService';
+import { getCurrentMonth, formatMonthLabel, getRecentMonths } from '@/lib/month';
 import TransactionItem from '@/src/components/TransactionItem';
 import SText from '@/src/components/SText';
 import SkeletonLoader from '@/src/components/SkeletonLoader';
 import FadeInView from '@/src/components/FadeInView';
-import GlassCard from '@/src/components/GlassCard';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import BrutalScreen from '@/src/components/BrutalScreen';
 import HighlightText from '@/src/components/HighlightText';
 import BrutalBox from '@/src/components/BrutalBox';
+import { formatCOP } from '@/src/utils/currency';
+import { isEditableTransaction } from '@/lib/transactionHelpers';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 import { parseISO, isToday, isYesterday, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -26,31 +28,80 @@ function getGroupKey(dateStr: string): string {
   return format(d, "d 'de' MMMM", { locale: es });
 }
 
+function SummaryPill({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: 'income' | 'expense' | 'neutral';
+}) {
+  const bg =
+    tone === 'income' ? colors.incomeBg
+    : tone === 'expense' ? colors.expenseBg
+    : colors.surface;
+  const fg = tone === 'income' ? '#15803D' : tone === 'expense' ? colors.expense : colors.ink;
+
+  return (
+    <BrutalBox bg={bg} radius={radii.md} shadow={3} style={{ flex: 1 }} contentStyle={styles.summaryPill}>
+      <SText variant="caption2" color={colors.textMuted} style={styles.summaryLabel}>{label}</SText>
+      <SText variant="callout" color={fg} style={{ fontWeight: '800', marginTop: 4 }} numberOfLines={1}>
+        {value}
+      </SText>
+    </BrutalBox>
+  );
+}
+
 export default function HistoryScreen() {
   const router = useRouter();
-  const { selectedMonth, refreshKey } = useApp();
-  const { data: allTxns, loading, refresh } = useTransactions(selectedMonth);
+  const { refreshKey } = useApp();
+  const [historyMonth, setHistoryMonth] = useState(getCurrentMonth);
+  const { data: allTxns, loading, refresh } = useTransactions(historyMonth);
 
   useFocusEffect(
     useCallback(() => {
       refresh();
     }, [refresh, refreshKey])
   );
+
   const [search, setSearch] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [catFilter, setCatFilter] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<'income' | 'expense' | null>(null);
   const [categories, setCategories] = useState<any[]>([]);
 
-  React.useEffect(() => { getCategories().then(setCategories).catch(() => {}); }, []);
+  const currentMonth = getCurrentMonth();
+  const monthLabel = formatMonthLabel(historyMonth);
+  const isCurrentMonth = historyMonth === currentMonth;
+  const monthOptions = getRecentMonths(12);
+
+  const hasActiveFilters = !isCurrentMonth || !!catFilter || !!typeFilter;
+
+  React.useEffect(() => {
+    getCategories().then(setCategories).catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     let list = allTxns;
-    if (search) list = list.filter((t) => t.description.toLowerCase().includes(search.toLowerCase()));
+    if (search) {
+      list = list.filter(
+        (t) =>
+          t.description.toLowerCase().includes(search.toLowerCase()) ||
+          (t.note?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
+          (t.category?.name?.toLowerCase().includes(search.toLowerCase()) ?? false)
+      );
+    }
     if (catFilter) list = list.filter((t) => t.category?.name === catFilter);
     if (typeFilter) list = list.filter((t) => t.type === typeFilter);
     return list;
   }, [allTxns, search, catFilter, typeFilter]);
+
+  const summary = useMemo(() => {
+    const income = filtered.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const expenses = filtered.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+    return { income, expenses, net: income - expenses };
+  }, [filtered]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, typeof filtered> = {};
@@ -66,6 +117,13 @@ export default function HistoryScreen() {
     router.push({ pathname: '/transaction/[id]', params: { id } });
   }, [router]);
 
+  function clearFilters() {
+    setHistoryMonth(getCurrentMonth());
+    setCatFilter(null);
+    setTypeFilter(null);
+    setSearch('');
+  }
+
   const groupKeys = Object.keys(grouped);
   let itemIndex = 0;
 
@@ -73,19 +131,42 @@ export default function HistoryScreen() {
     <BrutalScreen>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <FadeInView>
-          <HighlightText variant="title1">Historial</HighlightText>
-          <SText variant="footnote" color={colors.textMuted} style={{ marginTop: 8, marginBottom: 16 }}>
-            {filtered.length} transacciones
-          </SText>
+          <View style={styles.topBar}>
+            <View style={{ flex: 1 }}>
+              <HighlightText variant="title2">Historial</HighlightText>
+              <SText variant="footnote" color={colors.textMuted} style={{ marginTop: 6 }}>
+                {monthLabel} · {filtered.length} movimiento{filtered.length !== 1 ? 's' : ''}
+              </SText>
+            </View>
+            {hasActiveFilters ? (
+              <View style={[styles.filterBadge, brutalBorder(2)]}>
+                <SText variant="caption2" style={{ fontWeight: '800' }}>Filtrado</SText>
+              </View>
+            ) : null}
+          </View>
         </FadeInView>
 
-        <FadeInView index={1}>
+        {!loading && filtered.length > 0 ? (
+          <FadeInView index={1}>
+            <View style={styles.summaryRow}>
+              <SummaryPill label="INGRESOS" value={`+${formatCOP(summary.income)}`} tone="income" />
+              <SummaryPill label="GASTOS" value={`-${formatCOP(summary.expenses)}`} tone="expense" />
+              <SummaryPill
+                label="NETO"
+                value={`${summary.net >= 0 ? '+' : ''}${formatCOP(summary.net)}`}
+                tone="neutral"
+              />
+            </View>
+          </FadeInView>
+        ) : null}
+
+        <FadeInView index={2}>
           <View style={styles.searchRow}>
             <View style={[styles.searchInput, brutalBorder(2)]}>
               <Ionicons name="search" size={18} color={colors.ink} />
               <TextInput
                 style={styles.input}
-                placeholder="Buscar..."
+                placeholder="Buscar en este mes..."
                 placeholderTextColor={colors.textMuted}
                 value={search}
                 onChangeText={setSearch}
@@ -93,7 +174,7 @@ export default function HistoryScreen() {
             </View>
             <AnimatedPressable onPress={() => setFilterVisible(true)}>
               <BrutalBox
-                bg={(catFilter || typeFilter) ? colors.pink : colors.yellow}
+                bg={hasActiveFilters ? colors.pink : colors.yellow}
                 radius={radii.md}
                 shadow={3}
                 contentStyle={styles.filterBtn}
@@ -107,32 +188,54 @@ export default function HistoryScreen() {
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <SkeletonLoader key={i} variant="listItem" />)
         ) : groupKeys.length === 0 ? (
-          <FadeInView index={2}>
-            <GlassCard contentStyle={styles.emptyState}>
-              <SText variant="headline" style={{ fontWeight: '800', textTransform: 'uppercase' }}>Sin resultados</SText>
-              <SText variant="footnote" color={colors.textMuted} style={{ marginTop: 8 }}>Prueba otros filtros</SText>
-            </GlassCard>
+          <FadeInView index={3}>
+            <BrutalBox contentStyle={styles.emptyState}>
+              <View style={[styles.emptyIcon, brutalBorder(2)]}>
+                <Ionicons name="receipt-outline" size={32} color={colors.textMuted} />
+              </View>
+              <SText variant="body" style={{ fontWeight: '800', marginTop: spacing.md }}>
+                Sin movimientos
+              </SText>
+              <SText variant="footnote" color={colors.textMuted} style={{ marginTop: 6, textAlign: 'center' }}>
+                {hasActiveFilters
+                  ? 'No hay resultados con estos filtros en ' + monthLabel
+                  : 'No hay transacciones en ' + monthLabel}
+              </SText>
+              {hasActiveFilters ? (
+                <AnimatedPressable onPress={clearFilters} style={{ marginTop: spacing.lg }}>
+                  <BrutalBox bg={colors.yellow} radius={radii.pill} shadow={3} contentStyle={styles.emptyBtn}>
+                    <SText variant="callout" style={{ fontWeight: '800' }}>Limpiar filtros</SText>
+                  </BrutalBox>
+                </AnimatedPressable>
+              ) : null}
+            </BrutalBox>
           </FadeInView>
         ) : (
           groupKeys.map((key, gi) => (
-            <FadeInView key={key} index={gi + 2}>
-              <SText variant="subhead" style={{ fontWeight: '800', textTransform: 'uppercase', marginBottom: 8 }}>
-                {key}
-              </SText>
-              <GlassCard contentStyle={styles.sectionCard}>
-                {grouped[key].map((tx) => {
+            <FadeInView key={key} index={gi + 3}>
+              <View style={styles.groupHeader}>
+                <SText variant="subhead" style={styles.groupTitle}>{key}</SText>
+                <SText variant="caption2" color={colors.textMuted}>
+                  {grouped[key].length} mov.
+                </SText>
+              </View>
+              <BrutalBox contentStyle={styles.sectionCard}>
+                {grouped[key].map((tx, i) => {
                   const idx = itemIndex++;
                   return (
-                    <TransactionItem
-                      key={tx.id}
-                      transaction={tx}
-                      showTime
-                      index={idx}
-                      onPress={() => openEdit(tx.id)}
-                    />
+                    <View key={tx.id}>
+                      <TransactionItem
+                        transaction={tx}
+                        showTime
+                        index={idx}
+                        onPress={() => openEdit(tx.id)}
+                        readOnly={!isEditableTransaction(tx)}
+                      />
+                      {i < grouped[key].length - 1 ? <View style={styles.divider} /> : null}
+                    </View>
                   );
                 })}
-              </GlassCard>
+              </BrutalBox>
             </FadeInView>
           ))
         )}
@@ -141,40 +244,85 @@ export default function HistoryScreen() {
 
       <Modal visible={filterVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setFilterVisible(false)}>
-          <Animated.View entering={SlideInDown.springify().damping(20)} style={{ padding: 20 }}>
-            <BrutalBox contentStyle={styles.modalContent}>
-              <SText variant="title3" style={{ fontWeight: '800', textTransform: 'uppercase', marginBottom: 16 }}>Filtrar</SText>
-              <View style={styles.filterOptions}>
-                {[{ label: 'Todos', value: null }, { label: 'Ingresos', value: 'income' }, { label: 'Gastos', value: 'expense' }].map((opt) => (
-                  <AnimatedPressable
-                    key={opt.label}
-                    style={[styles.chip, typeFilter === opt.value && styles.chipActive]}
-                    onPress={() => setTypeFilter(opt.value as any)}
-                  >
-                    <SText variant="caption1" style={{ fontWeight: '800' }}>{opt.label}</SText>
-                  </AnimatedPressable>
-                ))}
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                  <AnimatedPressable style={[styles.chip, !catFilter && styles.chipActive]} onPress={() => setCatFilter(null)}>
-                    <SText variant="caption1" style={{ fontWeight: '800' }}>Todas</SText>
-                  </AnimatedPressable>
-                  {categories.map((c) => (
+          <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.modalWrap}>
+            <TouchableOpacity activeOpacity={1}>
+              <BrutalBox contentStyle={styles.modalContent}>
+                <SText variant="title3" style={{ fontWeight: '800', textTransform: 'uppercase', marginBottom: 4 }}>
+                  Filtros
+                </SText>
+                <SText variant="caption2" color={colors.textMuted} style={{ marginBottom: spacing.lg }}>
+                  Cambia el mes o refina la lista
+                </SText>
+
+                <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Mes</SText>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
+                  <View style={styles.chipRow}>
+                    {monthOptions.map((m) => (
+                      <AnimatedPressable
+                        key={m.value}
+                        style={[styles.chip, brutalBorder(2), historyMonth === m.value && styles.chipActive]}
+                        onPress={() => setHistoryMonth(m.value)}
+                      >
+                        <SText variant="caption2" style={{ fontWeight: '800' }}>{m.label}</SText>
+                      </AnimatedPressable>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Tipo</SText>
+                <View style={styles.chipRow}>
+                  {([
+                    { label: 'Todos', value: null },
+                    { label: 'Ingresos', value: 'income' as const },
+                    { label: 'Gastos', value: 'expense' as const },
+                  ]).map((opt) => (
                     <AnimatedPressable
-                      key={c.id}
-                      style={[styles.chip, catFilter === c.name && styles.chipActive]}
-                      onPress={() => setCatFilter(catFilter === c.name ? null : c.name)}
+                      key={opt.label}
+                      style={[styles.chip, brutalBorder(2), typeFilter === opt.value && styles.chipActive]}
+                      onPress={() => setTypeFilter(opt.value)}
                     >
-                      <SText variant="caption1" style={{ fontWeight: '800' }}>{c.name}</SText>
+                      <SText variant="caption2" style={{ fontWeight: '800' }}>{opt.label}</SText>
                     </AnimatedPressable>
                   ))}
                 </View>
-              </ScrollView>
-              <AnimatedPressable onPress={() => setFilterVisible(false)} style={{ alignSelf: 'center', marginTop: 8 }}>
-                <SText variant="headline" color={colors.pink} style={{ fontWeight: '800' }}>LISTO</SText>
-              </AnimatedPressable>
-            </BrutalBox>
+
+                <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Categoría</SText>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
+                  <View style={styles.chipRow}>
+                    <AnimatedPressable
+                      style={[styles.chip, brutalBorder(2), !catFilter && styles.chipActive]}
+                      onPress={() => setCatFilter(null)}
+                    >
+                      <SText variant="caption2" style={{ fontWeight: '800' }}>Todas</SText>
+                    </AnimatedPressable>
+                    {categories.map((c) => (
+                      <AnimatedPressable
+                        key={c.id}
+                        style={[styles.chip, brutalBorder(2), catFilter === c.name && styles.chipActive]}
+                        onPress={() => setCatFilter(catFilter === c.name ? null : c.name)}
+                      >
+                        <SText variant="caption2" style={{ fontWeight: '800' }}>{c.name}</SText>
+                      </AnimatedPressable>
+                    ))}
+                  </View>
+                </ScrollView>
+
+                <View style={styles.modalActions}>
+                  {hasActiveFilters ? (
+                    <AnimatedPressable style={[styles.modalSecondary, brutalBorder(2)]} onPress={clearFilters}>
+                      <SText variant="callout" style={{ fontWeight: '700' }}>Limpiar</SText>
+                    </AnimatedPressable>
+                  ) : null}
+                  <View style={{ flex: 1 }}>
+                    <AnimatedPressable onPress={() => setFilterVisible(false)}>
+                      <BrutalBox bg={colors.yellow} radius={radii.pill} shadow={3} contentStyle={styles.modalDone}>
+                        <SText variant="callout" style={{ fontWeight: '800' }}>Listo</SText>
+                      </BrutalBox>
+                    </AnimatedPressable>
+                  </View>
+                </View>
+              </BrutalBox>
+            </TouchableOpacity>
           </Animated.View>
         </TouchableOpacity>
       </Modal>
@@ -184,16 +332,73 @@ export default function HistoryScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, zIndex: 1 },
-  scrollContent: { paddingHorizontal: spacing.xl },
+  scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  filterBadge: {
+    backgroundColor: colors.pink,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+  },
+  summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+  summaryPill: { padding: spacing.md, minWidth: 0 },
+  summaryLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
   searchRow: { flexDirection: 'row', gap: 10, marginBottom: spacing.lg },
-  searchInput: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, paddingHorizontal: 14, height: 48, gap: 8 },
+  searchInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    height: 48,
+    gap: 8,
+  },
   input: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '500' },
   filterBtn: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center' },
+  groupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  groupTitle: { fontWeight: '800', textTransform: 'uppercase' },
   sectionCard: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, marginBottom: spacing.lg },
+  divider: { height: 2, backgroundColor: colors.bgAlt },
   emptyState: { padding: spacing.xxxl, alignItems: 'center' },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radii.md,
+    backgroundColor: colors.bgAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyBtn: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalContent: { padding: spacing.xxl },
-  filterOptions: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: radii.pill, borderWidth: 2, borderColor: colors.ink, backgroundColor: colors.bgAlt },
+  modalWrap: { padding: spacing.xl },
+  modalContent: { padding: spacing.xl },
+  fieldLabel: { marginBottom: spacing.sm, textTransform: 'uppercase', fontWeight: '600' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+  },
   chipActive: { backgroundColor: colors.yellow },
+  modalActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm, alignItems: 'center' },
+  modalSecondary: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 14,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+  },
+  modalDone: { paddingVertical: 14, alignItems: 'center' },
 });

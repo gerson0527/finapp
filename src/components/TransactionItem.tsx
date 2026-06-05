@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Transaction } from '@/services/transactionService';
+import { getTransactionSourceLabel } from '@/lib/transactionHelpers';
 import { formatCOP } from '@/src/utils/currency';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,6 +17,7 @@ interface TransactionItemProps {
   showTime?: boolean;
   index?: number;
   onPress?: () => void;
+  readOnly?: boolean;
 }
 
 export default function TransactionItem({
@@ -24,6 +26,7 @@ export default function TransactionItem({
   showTime = true,
   index = 0,
   onPress,
+  readOnly = false,
 }: TransactionItemProps) {
   const isIncome = transaction.type === 'income';
   const cat = transaction.category;
@@ -32,9 +35,12 @@ export default function TransactionItem({
   const dateStr = format(dateObj, 'd MMM', { locale: es });
   const timeStr = transaction.time?.slice(0, 5);
 
-  const title = transaction.note || cat?.name || transaction.description;
+  const title = transaction.description || cat?.name || transaction.note || 'Movimiento';
+  const sourceLabel = getTransactionSourceLabel(transaction);
   const subtitleParts = [
-    transaction.note ? cat?.name : null,
+    sourceLabel,
+    cat?.name && cat.name !== title ? cat.name : null,
+    transaction.note && transaction.note !== title ? transaction.note : null,
     showDate ? dateStr : null,
     showTime ? timeStr : null,
   ].filter(Boolean);
@@ -59,9 +65,14 @@ export default function TransactionItem({
           {isIncome ? '+' : '-'}{formatCOP(transaction.amount)}
         </SText>
       </View>
-      {onPress && (
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ marginLeft: 6 }} />
-      )}
+      {onPress ? (
+        <Ionicons
+          name={readOnly ? 'information-circle-outline' : 'chevron-forward'}
+          size={readOnly ? 18 : 16}
+          color={colors.textMuted}
+          style={{ marginLeft: 6 }}
+        />
+      ) : null}
     </View>
   );
 

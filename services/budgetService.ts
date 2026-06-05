@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId, getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
+import { getPreviousMonth } from '@/lib/month';
 
 export interface BudgetWithSpent {
   id: string;
@@ -134,4 +135,45 @@ export async function updateBudget(id: string, limit_amount: number): Promise<Bu
 export async function deleteBudget(id: string): Promise<void> {
   const { error } = await supabase.from('budgets').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+/** Copia presupuestos del mes anterior al mes actual (gasto empieza en 0). */
+export async function rolloverBudgetsToMonth(
+  targetMonth: string
+): Promise<{ created: number; fromMonth: string | null }> {
+  const userId = await getCurrentUserIdOrNull();
+  if (!userId) return { created: 0, fromMonth: null };
+
+  const existing = await getBudgets(targetMonth);
+  if (existing.length > 0) return { created: 0, fromMonth: null };
+
+  const prevMonth = getPreviousMonth(targetMonth);
+  const { data: prevRows, error } = await supabase
+    .from('budgets')
+    .select('title, category_id, limit_amount')
+    .eq('user_id', userId)
+    .eq('month', prevMonth)
+    .order('title');
+
+  if (error) throw new Error(error.message);
+  if (!prevRows?.length) return { created: 0, fromMonth: null };
+
+  const inserts = prevRows.map((b) => ({
+    user_id: userId,
+    title: b.title,
+    category_id: b.category_id,
+    month: targetMonth,
+    limit_amount: b.limit_amount,
+  }));
+
+  const { error: insertError } = await supabase.from('budgets').insert(inserts);
+  if (insertError) throw new Error(insertError.message);
+
+  return { created: inserts.length, fromMonth: prevMonth };
+}
+
+export async function updateBudgetLimits(
+  updates: { id: string; limit_amount: number }[]
+): Promise<void> {
+  await Promise.all(updates.map((u) => updateBudget(u.id, u.limit_amount)));
 }

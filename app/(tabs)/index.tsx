@@ -17,6 +17,7 @@ import ProgressBar from '@/src/components/ProgressBar';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 import { useApp } from '@/src/context/AppContext';
 import { formatCOP } from '@/src/utils/currency';
+import { isEditableTransaction } from '@/lib/transactionHelpers';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -306,6 +307,7 @@ export default function HomeScreen() {
                   transaction={tx}
                   showDate
                   index={i}
+                  readOnly={!isEditableTransaction(tx)}
                   onPress={() =>
                     router.push({ pathname: '/transaction/[id]', params: { id: tx.id } })
                   }

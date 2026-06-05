@@ -56,13 +56,20 @@ export async function createSavingsGoal(dto: CreateSavingsGoalDTO): Promise<Savi
 }
 
 export async function addContribution(goalId: string, amount: number): Promise<SavingsGoal> {
+  if (!amount || amount <= 0) {
+    throw new Error('El monto debe ser mayor a 0.');
+  }
+
   const { data, error } = await supabase.rpc('add_savings_contribution', {
     goal_id: goalId,
     contribution_amount: amount,
   });
 
   if (error) throw new Error(error.message);
-  return data;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw new Error('No se pudo registrar el aporte.');
+  return row as SavingsGoal;
 }
 
 export async function deleteSavingsGoal(id: string): Promise<void> {

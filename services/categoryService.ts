@@ -53,7 +53,13 @@ export async function updateCategory(id: string, dto: UpdateCategoryDTO): Promis
   return data;
 }
 
-/** Transacciones del usuario actual que usan esta categoría */
+export interface CategoryUsage {
+  transactionCount: number;
+  budgetCount: number;
+  inUse: boolean;
+}
+
+/** Transacciones del usuario (actuales o pasadas) que usan esta categoría */
 export async function getCategoryTransactionCount(id: string): Promise<number> {
   const userId = await getCurrentUserId();
   const { count, error } = await supabase
@@ -66,23 +72,52 @@ export async function getCategoryTransactionCount(id: string): Promise<number> {
   return count ?? 0;
 }
 
-export async function deleteCategory(id: string): Promise<void> {
+/** Presupuestos del usuario que usan esta categoría */
+export async function getCategoryBudgetCount(id: string): Promise<number> {
   const userId = await getCurrentUserId();
-  const txCount = await getCategoryTransactionCount(id);
-
-  if (txCount > 0) {
-    throw new Error(
-      'No se puede eliminar: ya tienes transacciones con esta categoría'
-    );
-  }
-
-  const { error: budgetsError } = await supabase
+  const { count, error } = await supabase
     .from('budgets')
-    .delete()
+    .select('*', { count: 'exact', head: true })
     .eq('category_id', id)
     .eq('user_id', userId);
 
-  if (budgetsError) throw new Error(budgetsError.message);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+export async function getCategoryUsage(id: string): Promise<CategoryUsage> {
+  const [transactionCount, budgetCount] = await Promise.all([
+    getCategoryTransactionCount(id),
+    getCategoryBudgetCount(id),
+  ]);
+  return {
+    transactionCount,
+    budgetCount,
+    inUse: transactionCount > 0 || budgetCount > 0,
+  };
+}
+
+function categoryInUseMessage(usage: CategoryUsage): string {
+  const parts: string[] = [];
+  if (usage.transactionCount > 0) {
+    parts.push(
+      `${usage.transactionCount} transacción${usage.transactionCount > 1 ? 'es' : ''} en tu historial`
+    );
+  }
+  if (usage.budgetCount > 0) {
+    parts.push(
+      `${usage.budgetCount} presupuesto${usage.budgetCount > 1 ? 's' : ''} activo${usage.budgetCount > 1 ? 's' : ''}`
+    );
+  }
+  return `No se puede eliminar: esta categoría está en uso (${parts.join(' y ')}).`;
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const usage = await getCategoryUsage(id);
+
+  if (usage.inUse) {
+    throw new Error(categoryInUseMessage(usage));
+  }
 
   const { data, error } = await supabase.from('categories').delete().eq('id', id).select('id');
   if (error) throw new Error(error.message);
