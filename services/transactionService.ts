@@ -4,7 +4,7 @@ import {
   assertCanCreateExpense,
   assertCanUpdateToExpense,
 } from '@/lib/balanceCheck';
-import { getMainAccount } from '@/services/accountService';
+import { getMainAccount, getAccount } from '@/services/accountService';
 
 export interface Transaction {
   id: string;
@@ -17,6 +17,8 @@ export interface Transaction {
   time: string;
   note?: string;
   budget_id?: string | null;
+  is_recurring?: boolean;
+  recurrence_day?: number | null;
   category?: {
     name: string;
     icon: string;
@@ -34,6 +36,18 @@ export interface CreateTransactionDTO {
   time: string;
   note?: string;
   budget_id?: string;
+  is_recurring?: boolean;
+  recurrence_day?: number;
+}
+
+export interface CreateTransferDTO {
+  amount: number;
+  from_account_id: string;
+  to_account_id: string;
+  category_id: string;
+  date: string;
+  time: string;
+  note?: string;
 }
 
 export type UpdateTransactionDTO = CreateTransactionDTO;
@@ -48,20 +62,26 @@ export interface MonthlyStats {
   balance: number;
 }
 
-export async function getTransactions(month: string): Promise<Transaction[]> {
-  const account = await getMainAccount();
-  if (!account) return [];
+export async function getTransactions(month: string, accountId?: string): Promise<Transaction[]> {
+  const userId = await getCurrentUserIdOrNull();
+  if (!userId) return [];
 
   const [year, m] = month.split('-').map(Number);
   const start = new Date(year, m - 1, 1).toISOString().split('T')[0];
   const end = new Date(year, m, 0).toISOString().split('T')[0];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('transactions')
     .select('*, category:categories(name, icon, color)')
-    .eq('account_id', account.id)
+    .eq('user_id', userId)
     .gte('date', start)
-    .lte('date', end)
+    .lte('date', end);
+
+  if (accountId) {
+    query = query.eq('account_id', accountId);
+  }
+
+  const { data, error } = await query
     .order('date', { ascending: false })
     .order('time', { ascending: false });
 
@@ -94,7 +114,7 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
   const userId = await getCurrentUserId();
 
   if (dto.type === 'expense') {
-    const account = await getMainAccount();
+    const account = await getAccount(dto.account_id);
     if (!account) throw new Error('No hay cuenta disponible');
     assertCanCreateExpense(dto.amount, Number(account.balance));
   }
@@ -112,6 +132,9 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
       time: dto.time,
       note: dto.note,
       budget_id: dto.budget_id ?? null,
+      is_recurring: dto.is_recurring ?? false,
+      recurrence_day: dto.is_recurring ? dto.recurrence_day ?? null : null,
+      recurring_source_id: null,
     })
     .select('*, category:categories(name, icon, color)')
     .single();
@@ -130,6 +153,89 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
   }
 
   return tx;
+}
+
+export async function createTransfer(dto: CreateTransferDTO): Promise<void> {
+  const userId = await getCurrentUserId();
+
+  if (dto.from_account_id === dto.to_account_id) {
+    throw new Error('Elige cuentas diferentes para la transferencia');
+  }
+
+  const from = await getAccount(dto.from_account_id);
+  const to = await getAccount(dto.to_account_id);
+  if (!from || !to) throw new Error('Cuenta no encontrada');
+
+  assertCanCreateExpense(dto.amount, Number(from.balance));
+
+  const description = 'Transferencia entre cuentas';
+
+  const { data: outTx, error: outError } = await supabase
+    .from('transactions')
+    .insert({
+      user_id: userId,
+      type: 'expense',
+      amount: dto.amount,
+      description,
+      category_id: dto.category_id,
+      account_id: dto.from_account_id,
+      date: dto.date,
+      time: dto.time,
+      note: dto.note,
+    })
+    .select('id')
+    .single();
+
+  if (outError) throw new Error(outError.message);
+
+  const { error: outBalError } = await supabase.rpc('update_account_balance', {
+    account_id: dto.from_account_id,
+    delta: -dto.amount,
+  });
+  if (outBalError) {
+    await supabase.from('transactions').delete().eq('id', outTx.id);
+    throw new Error(outBalError.message);
+  }
+
+  const { data: inTx, error: inError } = await supabase
+    .from('transactions')
+    .insert({
+      user_id: userId,
+      type: 'income',
+      amount: dto.amount,
+      description,
+      category_id: dto.category_id,
+      account_id: dto.to_account_id,
+      date: dto.date,
+      time: dto.time,
+      note: dto.note,
+    })
+    .select('id')
+    .single();
+
+  if (inError) {
+    await supabase.rpc('update_account_balance', {
+      account_id: dto.from_account_id,
+      delta: dto.amount,
+    });
+    await supabase.from('transactions').delete().eq('id', outTx.id);
+    throw new Error(inError.message);
+  }
+
+  const { error: inBalError } = await supabase.rpc('update_account_balance', {
+    account_id: dto.to_account_id,
+    delta: dto.amount,
+  });
+
+  if (inBalError) {
+    await supabase.from('transactions').delete().eq('id', inTx.id);
+    await supabase.rpc('update_account_balance', {
+      account_id: dto.from_account_id,
+      delta: dto.amount,
+    });
+    await supabase.from('transactions').delete().eq('id', outTx.id);
+    throw new Error(inBalError.message);
+  }
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
@@ -177,8 +283,8 @@ export async function updateTransaction(id: string, dto: UpdateTransactionDTO): 
 
   if (fetchError) throw new Error(fetchError.message);
 
-  const account = await getMainAccount();
-  if (account && dto.account_id === account.id) {
+  const account = await getAccount(dto.account_id);
+  if (account) {
     assertCanUpdateToExpense(
       dto.amount,
       Number(account.balance),
@@ -229,8 +335,8 @@ export async function updateTransaction(id: string, dto: UpdateTransactionDTO): 
 }
 
 export async function getMonthlyStats(month: string): Promise<MonthlyStats> {
-  const account = await getMainAccount();
-  if (!account) return { income: 0, expenses: 0, balance: 0 };
+  const userId = await getCurrentUserIdOrNull();
+  if (!userId) return { income: 0, expenses: 0, balance: 0 };
 
   const [year, m] = month.split('-').map(Number);
   const start = new Date(year, m - 1, 1).toISOString().split('T')[0];
@@ -239,7 +345,7 @@ export async function getMonthlyStats(month: string): Promise<MonthlyStats> {
   const { data, error } = await supabase
     .from('transactions')
     .select('type, amount')
-    .eq('account_id', account.id)
+    .eq('user_id', userId)
     .gte('date', start)
     .lte('date', end);
 
