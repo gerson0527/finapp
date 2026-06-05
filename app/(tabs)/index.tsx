@@ -3,6 +3,7 @@ import { useMonthlyStats } from '@/hooks/useMonthlyStats';
 import { useTransactions } from '@/hooks/useTransactions';
 import { getMainAccount } from '@/services/accountService';
 import { formatMonthLabel } from '@/lib/month';
+import { isBalanceCritical, isBalanceEmpty } from '@/lib/balanceAlerts';
 import BrutalScreen from '@/src/components/BrutalScreen';
 import BrutalBox from '@/src/components/BrutalBox';
 import BudgetCard from '@/src/components/BudgetCard';
@@ -20,15 +21,26 @@ import { formatCOP } from '@/src/utils/currency';
 import { isEditableTransaction } from '@/lib/transactionHelpers';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import ZeroBalanceAlert from '@/src/components/ZeroBalanceAlert';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 
-function BalanceHero({ value, loading }: { value: number; loading: boolean }) {
+function BalanceHero({
+  value,
+  loading,
+  critical,
+}: {
+  value: number;
+  loading: boolean;
+  critical: boolean;
+}) {
+  const isEmpty = !loading && isBalanceEmpty(value);
+  const isLow = !loading && critical && !isEmpty;
   const scale = useSharedValue(0.92);
   useEffect(() => {
     if (!loading) scale.value = withSpring(1, { damping: 14 });
@@ -39,13 +51,26 @@ function BalanceHero({ value, loading }: { value: number; loading: boolean }) {
 
   return (
     <Animated.View style={[styles.heroInner, animStyle]}>
+      {isEmpty || isLow ? (
+        <View style={[styles.zeroBadge, brutalBorder(2)]}>
+          <Ionicons name="sad-outline" size={14} color={colors.expense} />
+          <SText variant="caption2" color={colors.expense} style={{ fontWeight: '800' }}>
+            {isEmpty ? 'Sin saldo' : 'Casi en cero'}
+          </SText>
+        </View>
+      ) : null}
       <SText variant="label" color={colors.textSecondary} style={styles.heroLabel}>
         BALANCE NETO
       </SText>
       {loading ? (
         <SText variant="title1" style={styles.heroAmount}>---</SText>
       ) : (
-        <SText variant="title1" style={styles.heroAmount}>{formatCOP(value)}</SText>
+        <SText
+          variant="title1"
+          style={[styles.heroAmount, (isEmpty || isLow) && { color: colors.expense }]}
+        >
+          {formatCOP(value)}
+        </SText>
       )}
     </Animated.View>
   );
@@ -112,18 +137,14 @@ export default function HomeScreen() {
   const budgets = useBudgets(selectedMonth);
   const transactions = useTransactions(selectedMonth);
 
-  useFocusEffect(
-    useCallback(() => {
-      stats.refresh();
-      budgets.refresh();
-      transactions.refresh();
-    }, [stats.refresh, budgets.refresh, transactions.refresh, refreshKey])
-  );
   const [balance, setBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const [showZeroAlert, setShowZeroAlert] = useState(false);
+  const wasHealthyRef = useRef(true);
+  const dismissedCriticalRef = useRef(false);
 
-  useEffect(() => {
+  const loadBalance = useCallback(() => {
     setBalanceLoading(true);
     getMainAccount()
       .then((acct) => {
@@ -132,7 +153,37 @@ export default function HomeScreen() {
       })
       .catch(() => setFetchError(true))
       .finally(() => setBalanceLoading(false));
-  }, [selectedMonth, refreshKey]);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadBalance();
+      stats.refresh();
+      budgets.refresh();
+      transactions.refresh();
+    }, [loadBalance, stats.refresh, budgets.refresh, transactions.refresh, refreshKey])
+  );
+
+  useEffect(() => {
+    loadBalance();
+  }, [loadBalance, refreshKey]);
+
+  const balanceCritical = isBalanceCritical(balance, stats.income);
+
+  useEffect(() => {
+    if (balanceLoading) return;
+
+    if (!balanceCritical) {
+      wasHealthyRef.current = true;
+      dismissedCriticalRef.current = false;
+      return;
+    }
+
+    if (wasHealthyRef.current && !dismissedCriticalRef.current) {
+      setShowZeroAlert(true);
+      wasHealthyRef.current = false;
+    }
+  }, [balance, balanceLoading, balanceCritical]);
 
   const health =
     budgets.data.length > 0
@@ -166,8 +217,13 @@ export default function HomeScreen() {
         </FadeInView>
 
         <FadeInView index={1}>
-          <BrutalBox bg={colors.yellow} radius={radii.xl} shadow={6} contentStyle={styles.heroCard}>
-            <BalanceHero value={balance} loading={balanceLoading} />
+          <BrutalBox
+            bg={!balanceLoading && balanceCritical ? colors.expenseBg : colors.yellow}
+            radius={radii.xl}
+            shadow={6}
+            contentStyle={styles.heroCard}
+          >
+            <BalanceHero value={balance} loading={balanceLoading} critical={balanceCritical} />
             {!stats.loading && (
               <View style={[styles.flowPill, brutalBorder(2), { backgroundColor: colors.surface }]}>
                 <Ionicons
@@ -319,6 +375,16 @@ export default function HomeScreen() {
 
         <View style={{ height: 120 }} />
       </ScrollView>
+
+      <ZeroBalanceAlert
+        visible={showZeroAlert}
+        balance={balance}
+        onDismiss={() => {
+          setShowZeroAlert(false);
+          dismissedCriticalRef.current = true;
+        }}
+        onGoToBudgets={() => router.push('/(tabs)/budgets')}
+      />
     </BrutalScreen>
   );
 }
@@ -340,6 +406,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   heroInner: { alignItems: 'center', width: '100%' },
+  zeroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    marginBottom: spacing.sm,
+  },
   heroLabel: { letterSpacing: 1, marginBottom: spacing.sm },
   heroAmount: { fontWeight: '800', fontSize: 36, textAlign: 'center' },
   flowPill: {

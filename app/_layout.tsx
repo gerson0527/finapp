@@ -54,6 +54,7 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="savings" options={{ headerShown: true, headerTitle: 'Metas de Ahorro', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="categories" options={{ headerShown: true, headerTitle: 'Categorías', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="transaction/[id]" options={{ headerShown: false }} />
     </Stack>
   );

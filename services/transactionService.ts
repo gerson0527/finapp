@@ -1,5 +1,9 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId, getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
+import {
+  assertCanCreateExpense,
+  assertCanUpdateToExpense,
+} from '@/lib/balanceCheck';
 import { getMainAccount } from '@/services/accountService';
 
 export interface Transaction {
@@ -89,6 +93,12 @@ export async function getTransactionsByCategory(categoryId: string, month: strin
 export async function createTransaction(dto: CreateTransactionDTO): Promise<Transaction> {
   const userId = await getCurrentUserId();
 
+  if (dto.type === 'expense') {
+    const account = await getMainAccount();
+    if (!account) throw new Error('No hay cuenta disponible');
+    assertCanCreateExpense(dto.amount, Number(account.balance));
+  }
+
   const { data: tx, error: txError } = await supabase
     .from('transactions')
     .insert({
@@ -166,6 +176,17 @@ export async function updateTransaction(id: string, dto: UpdateTransactionDTO): 
     .single();
 
   if (fetchError) throw new Error(fetchError.message);
+
+  const account = await getMainAccount();
+  if (account && dto.account_id === account.id) {
+    assertCanUpdateToExpense(
+      dto.amount,
+      Number(account.balance),
+      old.type,
+      Number(old.amount),
+      dto.type
+    );
+  }
 
   const reverseDelta = -balanceDelta(old.type, Number(old.amount));
   const { error: reverseError } = await supabase.rpc('update_account_balance', {

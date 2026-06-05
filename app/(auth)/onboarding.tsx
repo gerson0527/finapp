@@ -5,6 +5,7 @@ import FadeInView from "@/src/components/FadeInView";
 import HighlightText from "@/src/components/HighlightText";
 import SText from "@/src/components/SText";
 import { brutalBorder, colors, radii, spacing } from "@/src/constants/theme";
+import { copDigitsToNumber, formatCOPDigits, parseCOPDigits } from "@/src/utils/currency";
 import { useAuth } from "@/src/context/AuthContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -41,7 +42,7 @@ export default function OnboardingScreen() {
   }));
 
   async function handleContinue() {
-    const amount = parseFloat(income);
+    const amount = copDigitsToNumber(income);
     if (!amount || amount <= 0) {
       Alert.alert("Error", "Ingresa cuánto ganas al mes (aproximado)");
       return;
@@ -105,13 +106,16 @@ export default function OnboardingScreen() {
             </SText>
             <TextInput
               style={styles.amountInput}
-              value={income}
-              onChangeText={(t) => setIncome(t.replace(/[^0-9]/g, ""))}
+              value={formatCOPDigits(income)}
+              onChangeText={(t) => setIncome(parseCOPDigits(t))}
               placeholder="0"
               placeholderTextColor={colors.textMuted}
               keyboardType={Platform.OS === "web" ? "numeric" : "number-pad"}
               autoFocus
             />
+            <SText variant="caption1" color={colors.textSecondary} style={{ fontWeight: "700" }}>
+              COP
+            </SText>
           </View>
           {income.length > 0 && (
             <SText
@@ -119,8 +123,7 @@ export default function OnboardingScreen() {
               color={colors.textSecondary}
               style={styles.hint}
             >
-              {parseInt(income, 10).toLocaleString("es-CO")} COP · balance
-              inicial
+              Pesos colombianos (COP) · balance inicial
             </SText>
           )}
 

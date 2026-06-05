@@ -35,7 +35,8 @@ import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import AuthFeedback from '@/src/components/AuthFeedback';
 import ProgressBar from '@/src/components/ProgressBar';
-import { formatCOP } from '@/src/utils/currency';
+import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
+import BalanceExceededAlert from '@/src/components/BalanceExceededAlert';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 function SummaryStat({
@@ -100,6 +101,7 @@ export default function BudgetsScreen() {
 
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [showExceededAlert, setShowExceededAlert] = useState(false);
 
   const monthLabel = formatMonthLabel(selectedMonth);
   const currentMonth = getCurrentMonth();
@@ -128,12 +130,12 @@ export default function BudgetsScreen() {
   const payRemaining = payBudget
     ? Math.max(Number(payBudget.limit_amount) - Number(payBudget.spent), 0)
     : 0;
-  const payNumAmount = parseFloat(payAmount) || 0;
+  const payNumAmount = copDigitsToNumber(payAmount);
   const exceedsBalance = accountBalance !== null && payNumAmount > accountBalance;
 
   function getDefaultPayAmount(budget: BudgetWithSpent): string {
     const remaining = Math.max(Number(budget.limit_amount) - Number(budget.spent), 0);
-    return remaining > 0 ? String(Math.round(remaining)) : '';
+    return remaining > 0 ? parseCOPDigits(String(Math.round(remaining))) : '';
   }
 
   function openPay(budget: BudgetWithSpent) {
@@ -179,13 +181,13 @@ export default function BudgetsScreen() {
 
   async function handlePay() {
     if (!payBudget) return;
-    const amount = parseFloat(payAmount);
+    const amount = copDigitsToNumber(payAmount);
     if (!amount || amount <= 0) {
       setPayError('Ingresa un monto válido.');
       return;
     }
     if (exceedsBalance) {
-      setPayError('No tienes suficiente balance disponible.');
+      setShowExceededAlert(true);
       return;
     }
 
@@ -212,7 +214,11 @@ export default function BudgetsScreen() {
       triggerRefresh();
       closePay();
     } catch (e: any) {
-      setPayError(e.message || 'No se pudo registrar el gasto.');
+      if (/supera tu balance/i.test(e.message || '')) {
+        setShowExceededAlert(true);
+      } else {
+        setPayError(e.message || 'No se pudo registrar el gasto.');
+      }
     } finally {
       setPaying(false);
     }
@@ -241,7 +247,7 @@ export default function BudgetsScreen() {
   };
 
   const handleSave = async () => {
-    const limit = parseFloat(newLimit);
+    const limit = copDigitsToNumber(newLimit);
     const title = newTitle.trim();
     if (!title || !newCategory || !limit || limit <= 0) {
       setSaveError('Nombre, categoría y límite mayor a 0 son obligatorios.');
@@ -484,9 +490,9 @@ export default function BudgetsScreen() {
                 <SText variant="body" style={{ fontWeight: '700' }}>$</SText>
                 <TextInput
                   style={styles.input}
-                  value={newLimit}
-                  onChangeText={(t) => setNewLimit(t.replace(/[^0-9]/g, ''))}
-                  placeholder="Ej. 500000"
+                  value={formatCOPDigits(newLimit)}
+                  onChangeText={(t) => setNewLimit(parseCOPDigits(t))}
+                  placeholder="Ej. 500.000"
                   placeholderTextColor={colors.textMuted}
                   keyboardType="number-pad"
                 />
@@ -586,12 +592,14 @@ export default function BudgetsScreen() {
                         style={styles.payInput}
                         placeholder="0"
                         placeholderTextColor={colors.textMuted}
-                        value={payAmount}
-                        onChangeText={(t) => setPayAmount(t.replace(/[^0-9]/g, ''))}
+                        value={formatCOPDigits(payAmount)}
+                        onChangeText={(t) => setPayAmount(parseCOPDigits(t))}
                         keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
                         autoFocus
                       />
-                      <SText variant="caption1" color={colors.textSecondary}>COP</SText>
+                      <SText variant="caption1" color={colors.textSecondary} style={{ fontWeight: '700' }}>
+                        COP
+                      </SText>
                     </View>
                     {payAmount.length > 0 ? (
                       <SText
@@ -601,14 +609,14 @@ export default function BudgetsScreen() {
                       >
                         {exceedsBalance
                           ? 'Supera tu balance disponible'
-                          : `${parseInt(payAmount, 10).toLocaleString('es-CO')} pesos`}
+                          : 'Pesos colombianos (COP)'}
                       </SText>
                     ) : null}
                   </BrutalBox>
 
-                  {payRemaining > 0 && payAmount !== String(Math.round(payRemaining)) ? (
+                  {payRemaining > 0 && payAmount !== parseCOPDigits(String(Math.round(payRemaining))) ? (
                     <AnimatedPressable
-                      onPress={() => setPayAmount(String(Math.round(payRemaining)))}
+                      onPress={() => setPayAmount(parseCOPDigits(String(Math.round(payRemaining))))}
                       style={{ marginBottom: spacing.lg }}
                     >
                       <BrutalBox bg={colors.surfaceAlt} radius={radii.pill} shadow={3} contentStyle={styles.quickFillChip}>
@@ -635,7 +643,7 @@ export default function BudgetsScreen() {
                     label={paying ? 'Guardando...' : 'Confirmar gasto'}
                     variant="pink"
                     onPress={handlePay}
-                    disabled={!payAmount || paying || exceedsBalance || balanceLoading}
+                    disabled={!payAmount || paying || balanceLoading}
                     style={{ marginTop: spacing.md }}
                   />
                   <AnimatedPressable onPress={closePay} style={styles.modalCancel}>
@@ -656,6 +664,13 @@ export default function BudgetsScreen() {
         saving={reviewSaving}
         onConfirm={handleReviewConfirm}
         onDismiss={handleReviewDismiss}
+      />
+
+      <BalanceExceededAlert
+        visible={showExceededAlert}
+        balance={accountBalance ?? 0}
+        amount={payNumAmount}
+        onDismiss={() => setShowExceededAlert(false)}
       />
     </BrutalScreen>
   );

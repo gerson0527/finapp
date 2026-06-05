@@ -24,6 +24,7 @@ import BrutalButton from '@/src/components/BrutalButton';
 import HighlightText from '@/src/components/HighlightText';
 import BalanceComparisonView from '@/src/components/BalanceComparisonView';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { copDigitsToNumber, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 
 interface MonthlyBalanceGateProps {
   children: React.ReactNode;
@@ -83,7 +84,7 @@ export default function MonthlyBalanceGate({ children }: MonthlyBalanceGateProps
   }
 
   async function handleSave() {
-    const amount = parseFloat(balance);
+    const amount = copDigitsToNumber(balance);
     if (!amount || amount <= 0) {
       Alert.alert('Error', 'Ingresa tu balance neto del mes');
       return;
@@ -146,17 +147,20 @@ export default function MonthlyBalanceGate({ children }: MonthlyBalanceGateProps
                   <SText variant="title2" style={{ fontWeight: '700' }}>$</SText>
                   <TextInput
                     style={styles.amountInput}
-                    value={balance}
-                    onChangeText={(t) => setBalance(t.replace(/[^0-9]/g, ''))}
+                    value={formatCOPDigits(balance)}
+                    onChangeText={(t) => setBalance(parseCOPDigits(t))}
                     placeholder="0"
                     placeholderTextColor={colors.textMuted}
                     keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
                     autoFocus
                   />
+                  <SText variant="caption1" color={colors.textSecondary} style={{ fontWeight: '700' }}>
+                    COP
+                  </SText>
                 </View>
                 {balance.length > 0 && (
                   <SText variant="footnote" color={colors.textSecondary} style={styles.hint}>
-                    {parseInt(balance, 10).toLocaleString('es-CO')} COP
+                    Pesos colombianos (COP)
                   </SText>
                 )}
 

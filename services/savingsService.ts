@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId, getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
+import { assertCanCreateExpense } from '@/lib/balanceCheck';
+import { getMainAccount } from '@/services/accountService';
 
 export interface SavingsGoal {
   id: string;
@@ -58,6 +60,11 @@ export async function createSavingsGoal(dto: CreateSavingsGoalDTO): Promise<Savi
 export async function addContribution(goalId: string, amount: number): Promise<SavingsGoal> {
   if (!amount || amount <= 0) {
     throw new Error('El monto debe ser mayor a 0.');
+  }
+
+  const account = await getMainAccount();
+  if (account) {
+    assertCanCreateExpense(amount, Number(account.balance));
   }
 
   const { data, error } = await supabase.rpc('add_savings_contribution', {

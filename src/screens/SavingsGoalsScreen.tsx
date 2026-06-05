@@ -24,7 +24,8 @@ import FadeInView from '@/src/components/FadeInView';
 import AuthFeedback from '@/src/components/AuthFeedback';
 import ProgressBar from '@/src/components/ProgressBar';
 import { useApp } from '@/src/context/AppContext';
-import { formatCOP } from '@/src/utils/currency';
+import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
+import BalanceExceededAlert from '@/src/components/BalanceExceededAlert';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 const presetIcons = ['airplane', 'shield-checkmark', 'laptop', 'home', 'car', 'heart', 'school', 'gift'];
@@ -87,6 +88,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
   const [saving, setSaving] = useState(false);
   const [accountBalance, setAccountBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [showExceededAlert, setShowExceededAlert] = useState(false);
 
   const summary = useMemo(() => {
     const totalSaved = goals.data.reduce((s, g) => s + Number(g.saved_amount), 0);
@@ -114,7 +116,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
       .finally(() => setBalanceLoading(false));
   }, [showContribute]);
 
-  const contributeAmountNum = parseFloat(contributeAmount) || 0;
+  const contributeAmountNum = copDigitsToNumber(contributeAmount);
   const exceedsBalance =
     accountBalance !== null && contributeAmountNum > accountBalance;
 
@@ -136,7 +138,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
         subtitle: subtitle.trim() || undefined,
         icon: selectedIcon,
         color: selectedColor,
-        target_amount: parseFloat(targetAmount),
+        target_amount: copDigitsToNumber(targetAmount),
       });
       goals.refresh();
       triggerRefresh();
@@ -154,13 +156,13 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
   }
 
   async function handleContribute(goalId: string) {
-    const amount = parseFloat(contributeAmount);
+    const amount = copDigitsToNumber(contributeAmount);
     if (!amount || amount <= 0) {
       setContributeError('Ingresa un monto mayor a 0.');
       return;
     }
     if (accountBalance !== null && amount > accountBalance) {
-      setContributeError(`No tienes suficiente balance. Disponible: ${formatCOP(accountBalance)}`);
+      setShowExceededAlert(true);
       return;
     }
     setSaving(true);
@@ -172,7 +174,11 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
       setShowContribute(null);
       setContributeAmount('');
     } catch (e: any) {
-      setContributeError(e.message || 'No se pudo aportar.');
+      if (/saldo insuficiente|supera tu balance/i.test(e.message || '')) {
+        setShowExceededAlert(true);
+      } else {
+        setContributeError(e.message || 'No se pudo aportar.');
+      }
     } finally {
       setSaving(false);
     }
@@ -368,13 +374,13 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                 <SText variant="body" style={{ fontWeight: '700' }}>$</SText>
                 <TextInput
                   style={styles.amountField}
-                  placeholder="Ej. 5000000"
+                  placeholder="Ej. 5.000.000"
                   placeholderTextColor={colors.textMuted}
-                  value={targetAmount}
-                  onChangeText={(t) => setTargetAmount(t.replace(/[^0-9]/g, ''))}
+                  value={formatCOPDigits(targetAmount)}
+                  onChangeText={(t) => setTargetAmount(parseCOPDigits(t))}
                   keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
                 />
-                <SText variant="caption2" color={colors.textMuted}>COP</SText>
+                <SText variant="caption2" color={colors.textMuted} style={{ fontWeight: '700' }}>COP</SText>
               </View>
 
               <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Icono</SText>
@@ -456,12 +462,12 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                   style={styles.contributeInput}
                   placeholder="0"
                   placeholderTextColor={colors.textMuted}
-                  value={contributeAmount}
-                  onChangeText={(t) => setContributeAmount(t.replace(/[^0-9]/g, ''))}
+                  value={formatCOPDigits(contributeAmount)}
+                  onChangeText={(t) => setContributeAmount(parseCOPDigits(t))}
                   keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
                   autoFocus
                 />
-                <SText variant="caption1" color={colors.textSecondary}>COP</SText>
+                <SText variant="caption1" color={colors.textSecondary} style={{ fontWeight: '700' }}>COP</SText>
               </View>
 
               {contributeAmount.length > 0 ? (
@@ -472,14 +478,14 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                 >
                   {exceedsBalance
                     ? 'Supera tu balance disponible'
-                    : `${parseInt(contributeAmount, 10).toLocaleString('es-CO')} pesos`}
+                    : 'Pesos colombianos (COP)'}
                 </SText>
               ) : null}
 
               <BrutalButton
                 label={saving ? 'Guardando...' : 'Confirmar aporte'}
                 onPress={() => showContribute && handleContribute(showContribute)}
-                disabled={!contributeAmount || saving || exceedsBalance || balanceLoading}
+                disabled={!contributeAmount || saving || balanceLoading}
               />
               <AnimatedPressable
                 onPress={() => {
@@ -495,6 +501,13 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
           </Animated.View>
         </View>
       </Modal>
+
+      <BalanceExceededAlert
+        visible={showExceededAlert}
+        balance={accountBalance ?? 0}
+        amount={contributeAmountNum}
+        onDismiss={() => setShowExceededAlert(false)}
+      />
     </View>
   );
 }

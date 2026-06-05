@@ -9,6 +9,7 @@ import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { copDigitsToNumber, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 
 interface BudgetMonthReviewModalProps {
   visible: boolean;
@@ -46,7 +47,7 @@ export default function BudgetMonthReviewModal({
     const parsed: Record<string, number> = {};
     for (const b of budgets) {
       const raw = limits[b.id] ?? '';
-      const num = parseFloat(raw);
+      const num = copDigitsToNumber(raw);
       if (!num || num <= 0) return;
       parsed[b.id] = num;
     }
@@ -54,7 +55,7 @@ export default function BudgetMonthReviewModal({
   }
 
   const allValid = budgets.every((b) => {
-    const num = parseFloat(limits[b.id] ?? '');
+    const num = copDigitsToNumber(limits[b.id] ?? '');
     return num > 0;
   });
 
@@ -103,12 +104,15 @@ export default function BudgetMonthReviewModal({
                     <SText variant="caption2" style={{ fontWeight: '700' }}>$</SText>
                     <TextInput
                       style={styles.limitInput}
-                      value={limits[b.id] ?? ''}
+                      value={formatCOPDigits(limits[b.id] ?? '')}
                       onChangeText={(t) =>
-                        setLimits((prev) => ({ ...prev, [b.id]: t.replace(/[^0-9]/g, '') }))
+                        setLimits((prev) => ({ ...prev, [b.id]: parseCOPDigits(t) }))
                       }
                       keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
                     />
+                    <SText variant="caption2" color={colors.textMuted} style={{ fontWeight: '700' }}>
+                      COP
+                    </SText>
                   </View>
                 </View>
               ))}

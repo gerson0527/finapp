@@ -20,7 +20,12 @@ type MenuItem = {
   iconBg: string;
 };
 
-function getInitials(email?: string | null): string {
+function getInitials(name?: string, email?: string | null): string {
+  if (name?.trim()) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  }
   if (!email) return '?';
   const local = email.split('@')[0] ?? '';
   const parts = local.split(/[._-]/).filter(Boolean);
@@ -71,7 +76,42 @@ export default function MoreScreen() {
   const { session } = useAuth();
 
   const email = session?.user?.email ?? 'Usuario';
-  const initials = useMemo(() => getInitials(session?.user?.email), [session?.user?.email]);
+  const displayName = String(session?.user?.user_metadata?.display_name ?? '').trim();
+  const initials = useMemo(
+    () => getInitials(displayName, session?.user?.email),
+    [displayName, session?.user?.email]
+  );
+
+  const accountItems: MenuItem[] = [
+    {
+      icon: 'person-outline',
+      label: 'Sobre mí',
+      subtitle: 'Nombre, bio y datos de tu cuenta',
+      route: '/settings/profile',
+      iconBg: colors.yellow,
+    },
+    {
+      icon: 'mail-outline',
+      label: 'Correo electrónico',
+      subtitle: 'Cambiar tu correo de acceso',
+      route: '/settings/email',
+      iconBg: colors.surfaceAlt,
+    },
+    {
+      icon: 'lock-closed-outline',
+      label: 'Contraseña',
+      subtitle: 'Actualizar tu clave de acceso',
+      route: '/settings/password',
+      iconBg: colors.expenseBg,
+    },
+    {
+      icon: 'wallet-outline',
+      label: 'Ingreso mensual',
+      subtitle: 'Tu referencia para planear el mes',
+      route: '/settings/income',
+      iconBg: colors.incomeBg,
+    },
+  ];
 
   const menuItems: MenuItem[] = [
     {
@@ -80,6 +120,13 @@ export default function MoreScreen() {
       subtitle: 'Organiza ingresos y gastos',
       route: '/categories',
       iconBg: colors.yellow,
+    },
+    {
+      icon: 'pie-chart-outline',
+      label: 'Presupuestos',
+      subtitle: 'Límites de gym, Netflix y más',
+      route: '/(tabs)/budgets',
+      iconBg: colors.pink,
     },
     {
       icon: 'download-outline',
@@ -114,23 +161,52 @@ export default function MoreScreen() {
         </FadeInView>
 
         <FadeInView index={1}>
-          <BrutalBox bg={colors.yellow} shadow={4} contentStyle={styles.profileCard}>
-            <View style={[styles.profileAvatar, brutalBorder(2)]}>
-              <SText variant="title3" style={{ fontWeight: '900' }}>{initials}</SText>
-            </View>
-            <View style={styles.profileInfo}>
-              <SText variant="headline" style={{ fontWeight: '800' }} numberOfLines={1}>
-                {email}
-              </SText>
-              <View style={[styles.planBadge, brutalBorder(2)]}>
-                <Ionicons name="sparkles" size={12} color={colors.ink} />
-                <SText variant="caption2" style={{ fontWeight: '800' }}>Plan gratuito</SText>
+          <AnimatedPressable onPress={() => router.push('/settings/profile' as any)}>
+            <BrutalBox bg={colors.yellow} shadow={4} contentStyle={styles.profileCard}>
+              <View style={[styles.profileAvatar, brutalBorder(2)]}>
+                <SText variant="title3" style={{ fontWeight: '900' }}>{initials}</SText>
               </View>
-            </View>
-          </BrutalBox>
+              <View style={styles.profileInfo}>
+                <SText variant="headline" style={{ fontWeight: '800' }} numberOfLines={1}>
+                  {displayName || email}
+                </SText>
+                {displayName ? (
+                  <SText variant="caption2" color={colors.textSecondary} numberOfLines={1}>
+                    {email}
+                  </SText>
+                ) : null}
+                <View style={[styles.planBadge, brutalBorder(2)]}>
+                  <Ionicons name="sparkles" size={12} color={colors.ink} />
+                  <SText variant="caption2" style={{ fontWeight: '800' }}>Plan gratuito</SText>
+                </View>
+              </View>
+              <View style={[styles.chevron, brutalBorder(2)]}>
+                <Ionicons name="chevron-forward" size={16} color={colors.ink} />
+              </View>
+            </BrutalBox>
+          </AnimatedPressable>
         </FadeInView>
 
         <FadeInView index={2}>
+          <View style={styles.sectionHeader}>
+            <SText variant="caption1" color={colors.textMuted} style={styles.sectionLabel}>
+              MI CUENTA
+            </SText>
+          </View>
+          <BrutalBox shadow={4} contentStyle={styles.menuCard}>
+            {accountItems.map((item, index) => (
+              <View key={item.label}>
+                <MenuRow
+                  item={item}
+                  onPress={() => router.push(item.route as any)}
+                />
+                {index < accountItems.length - 1 ? <View style={styles.menuDivider} /> : null}
+              </View>
+            ))}
+          </BrutalBox>
+        </FadeInView>
+
+        <FadeInView index={3}>
           <View style={styles.sectionHeader}>
             <SText variant="caption1" color={colors.textMuted} style={styles.sectionLabel}>
               CONFIGURACIÓN
@@ -150,7 +226,7 @@ export default function MoreScreen() {
           </BrutalBox>
         </FadeInView>
 
-        <FadeInView index={3}>
+        <FadeInView index={4}>
           <View style={styles.sectionHeader}>
             <SText variant="caption1" color={colors.textMuted} style={styles.sectionLabel}>
               SESIÓN
@@ -168,7 +244,7 @@ export default function MoreScreen() {
           </AnimatedPressable>
         </FadeInView>
 
-        <FadeInView index={4}>
+        <FadeInView index={5}>
           <BrutalBox
             bg={colors.bgAlt}
             radius={radii.pill}

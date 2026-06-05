@@ -6,6 +6,13 @@ import { format, isToday, parseISO } from 'date-fns';
 import { getCategories, Category } from '@/services/categoryService';
 import { getMainAccount } from '@/services/accountService';
 import { CreateTransactionDTO, Transaction } from '@/services/transactionService';
+import {
+  BALANCE_EXCEEDED_MESSAGE,
+  expenseExceedsBalance,
+  expenseUpdateExceedsBalance,
+} from '@/lib/balanceCheck';
+import BalanceExceededAlert from '@/src/components/BalanceExceededAlert';
+import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
@@ -61,6 +68,9 @@ export default function TransactionForm({
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [accountBalance, setAccountBalance] = useState<number | null>(null);
+  const [showExceededAlert, setShowExceededAlert] = useState(false);
+  const [exceededAttempt, setExceededAttempt] = useState(0);
   const amountRef = useRef<TextInput>(null);
   const amountScale = useSharedValue(1);
 
@@ -71,9 +81,14 @@ export default function TransactionForm({
   );
 
   useEffect(() => {
-    if (!accountId) {
-      getMainAccount().then((a) => { if (a) setAccountId(a.id); });
-    }
+    getMainAccount()
+      .then((a) => {
+        if (a) {
+          if (!accountId) setAccountId(a.id);
+          setAccountBalance(Number(a.balance));
+        }
+      })
+      .catch(() => setAccountBalance(0));
   }, [accountId]);
 
   useEffect(() => {
@@ -93,11 +108,30 @@ export default function TransactionForm({
     });
   }, [type, categories]);
 
+  const numAmount = copDigitsToNumber(amount);
+  const exceedsBalance =
+    type === 'expense' &&
+    accountBalance !== null &&
+    (tx
+      ? expenseUpdateExceedsBalance(
+          numAmount,
+          accountBalance,
+          tx.type,
+          Number(tx.amount),
+          'expense'
+        )
+      : expenseExceedsBalance(numAmount, accountBalance));
+
   async function handleSave() {
-    const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) { Alert.alert('Error', 'Ingresa un monto válido'); return; }
     if (!selectedCategoryId) { Alert.alert('Error', 'Selecciona una categoría'); return; }
     if (!accountId) { Alert.alert('Error', 'No hay cuenta disponible'); return; }
+
+    if (type === 'expense' && accountBalance !== null && exceedsBalance) {
+      setExceededAttempt(numAmount);
+      setShowExceededAlert(true);
+      return;
+    }
 
     const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
     const description = selectedCategory?.name ?? tx?.description ?? 'Transacción';
@@ -122,7 +156,12 @@ export default function TransactionForm({
         note: note.trim() || undefined,
       });
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'No se pudo guardar');
+      if (e.message === BALANCE_EXCEEDED_MESSAGE) {
+        setExceededAttempt(numAmount);
+        setShowExceededAlert(true);
+      } else {
+        Alert.alert('Error', e.message || 'No se pudo guardar');
+      }
     } finally {
       setSaving(false);
     }
@@ -192,21 +231,35 @@ export default function TransactionForm({
               <TextInput
                 ref={amountRef}
                 style={styles.amountInput}
-                value={amount}
-                onChangeText={(t) => setAmount(t.replace(/[^0-9]/g, ''))}
+                value={formatCOPDigits(amount)}
+                onChangeText={(t) => setAmount(parseCOPDigits(t))}
                 keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
                 inputMode="numeric"
                 placeholder="0"
                 placeholderTextColor={colors.textMuted}
-                maxLength={10}
+                maxLength={14}
                 textAlign="center"
               />
+              <SText variant="caption1" color={colors.textSecondary} style={{ fontWeight: '700' }}>
+                COP
+              </SText>
             </Animated.View>
             {amount.length > 0 && (
-              <SText variant="footnote" color={colors.textSecondary} style={styles.amountHint}>
-                {parseInt(amount, 10).toLocaleString('es-CO')} COP
+              <SText
+                variant="footnote"
+                color={exceedsBalance ? colors.expense : colors.textSecondary}
+                style={[styles.amountHint, exceedsBalance && { fontWeight: '700' }]}
+              >
+                {exceedsBalance
+                  ? 'Supera tu balance disponible'
+                  : 'Pesos colombianos (COP)'}
               </SText>
             )}
+            {type === 'expense' && accountBalance !== null ? (
+              <SText variant="caption2" color={colors.textMuted} style={styles.balanceHint}>
+                Disponible: {formatCOP(accountBalance)}
+              </SText>
+            ) : null}
           </BrutalBox>
         </FadeInView>
 
@@ -251,6 +304,13 @@ export default function TransactionForm({
         </FadeInView>
         <View style={{ height: 120 }} />
       </ScrollView>
+
+      <BalanceExceededAlert
+        visible={showExceededAlert}
+        balance={accountBalance ?? 0}
+        amount={exceededAttempt}
+        onDismiss={() => setShowExceededAlert(false)}
+      />
     </>
   );
 }
@@ -302,6 +362,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     width: '100%',
+  },
+  balanceHint: {
+    marginTop: spacing.sm,
+    textAlign: 'center',
   },
   label: { fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.lg, textTransform: 'uppercase' },
   textInput: {
