@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import AnimatedPressable from '@/src/components/AnimatedPressable';
 import BrutalScreen from '@/src/components/BrutalScreen';
 import HighlightText from '@/src/components/HighlightText';
 import BrutalBox from '@/src/components/BrutalBox';
+import ExportModal from '@/src/components/ExportModal';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 type MenuItem = {
@@ -74,6 +75,7 @@ function MenuRow({
 export default function MoreScreen() {
   const router = useRouter();
   const { session } = useAuth();
+  const [exportVisible, setExportVisible] = useState(false);
 
   const email = session?.user?.email ?? 'Usuario';
   const displayName = String(session?.user?.user_metadata?.display_name ?? '').trim();
@@ -145,8 +147,8 @@ export default function MoreScreen() {
     {
       icon: 'download-outline',
       label: 'Exportar datos',
-      subtitle: 'Descarga tu historial en CSV',
-      route: null,
+      subtitle: 'CSV o PDF de tu historial',
+      route: 'export',
       iconBg: colors.incomeBg,
     },
   ];
@@ -232,7 +234,13 @@ export default function MoreScreen() {
                 <MenuRow
                   item={item}
                   disabled={!item.route}
-                  onPress={item.route ? () => router.push(item.route as any) : undefined}
+                  onPress={
+                    item.route === 'export'
+                      ? () => setExportVisible(true)
+                      : item.route
+                        ? () => router.push(item.route as any)
+                        : undefined
+                  }
                 />
                 {index < menuItems.length - 1 ? <View style={styles.menuDivider} /> : null}
               </View>
@@ -273,6 +281,7 @@ export default function MoreScreen() {
           </BrutalBox>
         </FadeInView>
       </ScrollView>
+      <ExportModal visible={exportVisible} onClose={() => setExportVisible(false)} />
     </BrutalScreen>
   );
 }
