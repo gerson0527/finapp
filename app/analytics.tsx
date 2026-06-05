@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/src/context/AppContext';
-import { getExpenseAnalytics } from '@/services/analyticsService';
+import { getAdvancedAnalytics } from '@/services/analyticsService';
 import { formatMonthLabel } from '@/lib/month';
 import BrutalScreen from '@/src/components/BrutalScreen';
 import BrutalBox from '@/src/components/BrutalBox';
@@ -12,18 +12,20 @@ import SText from '@/src/components/SText';
 import SkeletonLoader from '@/src/components/SkeletonLoader';
 import ExpenseBarChart from '@/src/components/ExpenseBarChart';
 import CategoryPieChart from '@/src/components/CategoryPieChart';
+import NetBalanceLineChart from '@/src/components/NetBalanceLineChart';
+import InsightCard from '@/src/components/InsightCard';
 import { formatCOP } from '@/src/utils/currency';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 export default function AnalyticsScreen() {
   const { selectedMonth } = useApp();
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<Awaited<ReturnType<typeof getExpenseAnalytics>> | null>(null);
+  const [data, setData] = useState<Awaited<ReturnType<typeof getAdvancedAnalytics>> | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
-      getExpenseAnalytics(selectedMonth)
+      getAdvancedAnalytics(selectedMonth)
         .then(setData)
         .catch(() => setData(null))
         .finally(() => setLoading(false));
@@ -71,11 +73,29 @@ export default function AnalyticsScreen() {
                 </View>
               </BrutalBox>
 
+              {data.insights.length > 0 ? (
+                <>
+                  <SText variant="caption1" color={colors.textMuted} style={styles.sectionLabel}>
+                    INSIGHTS
+                  </SText>
+                  {data.insights.map((insight) => (
+                    <InsightCard key={insight.id} insight={insight} />
+                  ))}
+                </>
+              ) : null}
+
               <SText variant="caption1" color={colors.textMuted} style={styles.sectionLabel}>
                 GASTOS ÚLTIMOS 6 MESES
               </SText>
               <BrutalBox shadow={4} contentStyle={styles.chartCard}>
                 <ExpenseBarChart data={data.monthly} />
+              </BrutalBox>
+
+              <SText variant="caption1" color={colors.textMuted} style={styles.sectionLabel}>
+                BALANCE NETO (6 MESES)
+              </SText>
+              <BrutalBox shadow={4} contentStyle={styles.chartCard}>
+                <NetBalanceLineChart data={data.netBalanceTrend} />
               </BrutalBox>
 
               <SText variant="caption1" color={colors.textMuted} style={styles.sectionLabel}>
