@@ -59,6 +59,7 @@ function RootNavigator() {
       <Stack.Screen name="settings" options={{ headerShown: false }} />
       <Stack.Screen name="analytics" options={{ headerShown: true, headerTitle: 'Analytics', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="accounts" options={{ headerShown: true, headerTitle: 'Cuentas', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
+      <Stack.Screen name="recurring" options={{ headerShown: true, headerTitle: 'Gastos recurrentes', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="notifications-settings" options={{ headerShown: true, headerTitle: 'Notificaciones', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="transaction/[id]" options={{ headerShown: false }} />
     </Stack>

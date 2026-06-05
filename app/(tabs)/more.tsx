@@ -145,6 +145,13 @@ export default function MoreScreen() {
       iconBg: colors.pink,
     },
     {
+      icon: 'repeat-outline',
+      label: 'Gastos recurrentes',
+      subtitle: 'Netflix, arriendo y otros fijos',
+      route: '/recurring',
+      iconBg: colors.surfaceAlt,
+    },
+    {
       icon: 'notifications-outline',
       label: 'Notificaciones',
       subtitle: 'Presupuesto 80% y recordatorio diario',
