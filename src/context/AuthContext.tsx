@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { supabase } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
+import { getAuthSession, onAuthSessionChange, supabase } from '@/lib/supabase';
 import { needsOnboarding } from '@/services/profileService';
 
 interface AuthContextType {
@@ -37,20 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        try {
-          const pending = await needsOnboarding();
-          setOnboardingComplete(!pending);
-        } catch {
-          setOnboardingComplete(false);
-        }
-      }
-      setIsLoading(false);
-    });
+    let mounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    async function applySession(session: Session | null) {
+      if (!mounted) return;
       setSession(session);
       if (session) {
         try {
@@ -62,9 +52,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setOnboardingComplete(null);
       }
+      setIsLoading(false);
+    }
+
+    getAuthSession().then(applySession);
+
+    const unsubscribe = onAuthSessionChange((session) => {
+      applySession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []);
 
   async function signIn(email: string, password: string) {

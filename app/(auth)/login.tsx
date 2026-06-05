@@ -3,6 +3,7 @@ import {
   View, TextInput, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withDelay } from 'react-native-reanimated';
@@ -31,8 +32,8 @@ function showNativeAlert(title: string, message: string) {
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const router = useRouter();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,23 +43,17 @@ export default function LoginScreen() {
   const logoScale = useSharedValue(0.85);
   React.useEffect(() => {
     logoScale.value = withDelay(100, withSpring(1, { damping: 12 }));
-  }, []);
+  }, [logoScale]);
   const logoAnim = useAnimatedStyle(() => ({ transform: [{ scale: logoScale.value }] }));
 
   function clearFeedback() {
     setFeedback(null);
   }
 
-  function switchMode(next: 'login' | 'register') {
-    setMode(next);
-    clearFeedback();
-  }
-
   function validateForm(): string | null {
     const trimmed = email.trim();
     if (!trimmed || !password) return 'Ingresa correo y contraseña.';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'El correo no tiene un formato válido.';
-    if (password.length < 6) return 'La contraseña debe tener al menos 6 caracteres.';
     return null;
   }
 
@@ -74,27 +69,18 @@ export default function LoginScreen() {
     clearFeedback();
 
     try {
-      if (mode === 'login') {
-        await signIn(email.trim(), password);
-        setFeedback({
-          type: 'success',
-          title: 'Sesión iniciada',
-          message: 'Bienvenido. Cargando tu cuenta…',
-        });
-        showNativeAlert('Sesión iniciada', 'Bienvenido a FinApp.');
-      } else {
-        const result = await signUp(email.trim(), password);
-        setFeedback(result);
-        showNativeAlert(result.title ?? 'Registro', result.message);
-        if (result.type === 'info') {
-          setMode('login');
-        }
-      }
+      await signIn(email.trim(), password);
+      setFeedback({
+        type: 'success',
+        title: 'Sesión iniciada',
+        message: 'Bienvenido. Cargando tu cuenta…',
+      });
+      showNativeAlert('Sesión iniciada', 'Bienvenido a FinApp.');
     } catch (e: unknown) {
       const message = getAuthErrorMessage(e);
       setFeedback({
         type: 'error',
-        title: mode === 'login' ? 'No se pudo iniciar sesión' : 'No se pudo registrar',
+        title: 'No se pudo iniciar sesión',
         message,
       });
       showNativeAlert('Error', message);
@@ -125,20 +111,6 @@ export default function LoginScreen() {
 
       <FadeInView index={2} delay={150}>
         <BrutalBox contentStyle={styles.formCard}>
-          <View style={styles.toggleRow}>
-            {(['login', 'register'] as const).map((m) => (
-              <AnimatedPressable
-                key={m}
-                style={[styles.toggleBtn, mode === m && styles.toggleActive]}
-                onPress={() => switchMode(m)}
-              >
-                <SText variant="callout" style={{ fontWeight: '800', textTransform: 'uppercase' }}>
-                  {m === 'login' ? 'Entrar' : 'Registro'}
-                </SText>
-              </AnimatedPressable>
-            ))}
-          </View>
-
           {feedback ? (
             <AuthFeedback type={feedback.type} title={feedback.title} message={feedback.message} />
           ) : null}
@@ -173,29 +145,35 @@ export default function LoginScreen() {
               }}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              autoComplete="current-password"
             />
             <AnimatedPressable style={styles.eyeBtn} onPress={() => setShowPassword(!showPassword)} haptic={false}>
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.ink} />
             </AnimatedPressable>
           </View>
 
-          {mode === 'register' ? (
-            <SText variant="caption2" color={colors.textMuted} style={styles.hint}>
-              Crea tu cuenta con correo y contraseña. No necesitas confirmar por email.
+          <AnimatedPressable
+            onPress={() => router.push('/(auth)/forgot-password')}
+            style={styles.forgotLink}
+          >
+            <SText variant="footnote" color={colors.textSecondary} style={{ fontWeight: '700' }}>
+              ¿Olvidaste tu contraseña?
             </SText>
-          ) : null}
+          </AnimatedPressable>
 
           {loading ? (
             <BrutalBox bg={colors.yellow} radius={radii.pill} contentStyle={styles.loadingBtn}>
               <ActivityIndicator color={colors.ink} />
             </BrutalBox>
           ) : (
-            <BrutalButton
-              label={mode === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
-              onPress={handleSubmit}
-            />
+            <BrutalButton label="Iniciar sesión" onPress={handleSubmit} />
           )}
+
+          <AnimatedPressable onPress={() => router.push('/(auth)/register')} style={styles.registerLink}>
+            <SText variant="footnote" style={{ fontWeight: '700' }}>
+              ¿No tienes cuenta? Regístrate
+            </SText>
+          </AnimatedPressable>
         </BrutalBox>
       </FadeInView>
     </KeyboardAvoidingView>
@@ -209,13 +187,11 @@ const styles = StyleSheet.create({
   topSection: { alignItems: 'center', marginBottom: 28 },
   logoWrap: { width: 80, height: 80, justifyContent: 'center', alignItems: 'center' },
   formCard: { padding: spacing.xl },
-  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.lg },
-  toggleBtn: { flex: 1, paddingVertical: 12, borderRadius: radii.pill, alignItems: 'center', borderWidth: 2, borderColor: colors.ink, backgroundColor: colors.bgAlt },
-  toggleActive: { backgroundColor: colors.pink },
-  hint: { marginBottom: spacing.md, lineHeight: 18 },
   inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, marginBottom: spacing.md, height: 54 },
   inputIcon: { marginLeft: 14 },
   input: { flex: 1, color: colors.ink, fontSize: 15, paddingHorizontal: 12, fontWeight: '500' },
   eyeBtn: { padding: 14, position: 'absolute', right: 0 },
+  forgotLink: { alignSelf: 'flex-end', marginBottom: spacing.lg },
+  registerLink: { marginTop: spacing.lg, alignItems: 'center' },
   loadingBtn: { paddingVertical: 16, alignItems: 'center', marginTop: spacing.sm },
 });
