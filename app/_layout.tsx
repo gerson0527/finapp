@@ -23,7 +23,7 @@ function RootNavigator() {
     SplashScreen.hideAsync();
 
     const inAuth = segments[0] === '(auth)';
-    const onOnboarding = segments[1] === 'onboarding';
+    const onOnboarding = segments[0] === 'onboarding';
 
     if (!session && !inAuth) {
       router.replace('/(auth)/login');
@@ -31,11 +31,11 @@ function RootNavigator() {
     }
 
     if (session && onboardingComplete === false && !onOnboarding) {
-      router.replace('/(auth)/onboarding');
+      router.replace('/onboarding');
       return;
     }
 
-    if (session && onboardingComplete && inAuth) {
+    if (session && onboardingComplete && (inAuth || onOnboarding)) {
       router.replace('/(tabs)');
     }
   }, [session, isLoading, onboardingComplete, segments]);
@@ -51,10 +51,13 @@ function RootNavigator() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
+      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="savings" options={{ headerShown: true, headerTitle: 'Metas de Ahorro', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="categories" options={{ headerShown: true, headerTitle: 'Categorías', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="analytics" options={{ headerShown: true, headerTitle: 'Analytics', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
+      <Stack.Screen name="accounts" options={{ headerShown: true, headerTitle: 'Cuentas', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
       <Stack.Screen name="transaction/[id]" options={{ headerShown: false }} />
     </Stack>
   );
