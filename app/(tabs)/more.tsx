@@ -115,6 +115,20 @@ export default function MoreScreen() {
 
   const menuItems: MenuItem[] = [
     {
+      icon: 'analytics-outline',
+      label: 'Analytics',
+      subtitle: 'Gastos por mes y categorías',
+      route: '/analytics',
+      iconBg: colors.pink,
+    },
+    {
+      icon: 'wallet-outline',
+      label: 'Cuentas',
+      subtitle: 'Todas tus cuentas y balances',
+      route: '/accounts',
+      iconBg: colors.yellow,
+    },
+    {
       icon: 'grid-outline',
       label: 'Categorías',
       subtitle: 'Organiza ingresos y gastos',
