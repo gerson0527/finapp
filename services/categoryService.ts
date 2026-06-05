@@ -84,6 +84,11 @@ export async function deleteCategory(id: string): Promise<void> {
 
   if (budgetsError) throw new Error(budgetsError.message);
 
-  const { error } = await supabase.from('categories').delete().eq('id', id);
+  const { data, error } = await supabase.from('categories').delete().eq('id', id).select('id');
   if (error) throw new Error(error.message);
+  if (!data?.length) {
+    throw new Error(
+      'No se pudo eliminar la categoría. Si es una categoría del sistema, puede estar protegida.'
+    );
+  }
 }

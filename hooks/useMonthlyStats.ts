@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getMonthlyStats, MonthlyStats } from '@/services/transactionService';
+import { useAppRefresh } from '@/hooks/useAppRefresh';
 
 export function useMonthlyStats(month: string) {
   const [stats, setStats] = useState<MonthlyStats>({ income: 0, expenses: 0, balance: 0 });
@@ -22,6 +23,8 @@ export function useMonthlyStats(month: string) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useAppRefresh(load, [month]);
 
   return { ...stats, loading, error, refresh: load };
 }

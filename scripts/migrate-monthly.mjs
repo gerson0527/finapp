@@ -2,6 +2,9 @@ import pg from 'pg';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { loadEnv } from './load-env.mjs';
+
+loadEnv();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONNECTION_STRING = process.env.SUPABASE_DB_URL;

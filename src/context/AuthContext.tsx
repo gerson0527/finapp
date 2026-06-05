@@ -8,7 +8,10 @@ interface AuthContextType {
   isLoading: boolean;
   onboardingComplete: boolean | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<string>;
+  signUp: (
+    email: string,
+    password: string
+  ) => Promise<{ type: 'success' | 'info'; title: string; message: string }>;
   signOut: () => Promise<void>;
   refreshOnboarding: () => Promise<void>;
 }
@@ -72,8 +75,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signUp(email: string, password: string) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
-    if (data.session) return '';
-    return 'Revisa tu correo para confirmar la cuenta.';
+
+    if (data.user?.identities?.length === 0) {
+      const err = new Error('Este correo ya está registrado. Inicia sesión en su lugar.');
+      (err as Error & { code?: string }).code = 'user_already_registered';
+      throw err;
+    }
+
+    if (data.session) {
+      return {
+        type: 'success' as const,
+        title: 'Cuenta creada',
+        message: 'Tu cuenta está lista. Redirigiendo…',
+      };
+    }
+
+    return {
+      type: 'info' as const,
+      title: 'Cuenta creada',
+      message: 'Tu cuenta fue creada. Inicia sesión con tu correo y contraseña.',
+    };
   }
 
   async function signOut() {

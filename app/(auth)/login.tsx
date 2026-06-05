@@ -14,7 +14,20 @@ import AnimatedPressable from '@/src/components/AnimatedPressable';
 import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import HighlightText from '@/src/components/HighlightText';
+import AuthFeedback, { AuthFeedbackType } from '@/src/components/AuthFeedback';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+
+interface FeedbackState {
+  type: AuthFeedbackType;
+  title?: string;
+  message: string;
+}
+
+function showNativeAlert(title: string, message: string) {
+  if (Platform.OS !== 'web') {
+    Alert.alert(title, message);
+  }
+}
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -24,6 +37,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
 
   const logoScale = useSharedValue(0.85);
   React.useEffect(() => {
@@ -31,18 +45,62 @@ export default function LoginScreen() {
   }, []);
   const logoAnim = useAnimatedStyle(() => ({ transform: [{ scale: logoScale.value }] }));
 
+  function clearFeedback() {
+    setFeedback(null);
+  }
+
+  function switchMode(next: 'login' | 'register') {
+    setMode(next);
+    clearFeedback();
+  }
+
+  function validateForm(): string | null {
+    const trimmed = email.trim();
+    if (!trimmed || !password) return 'Ingresa correo y contraseña.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'El correo no tiene un formato válido.';
+    if (password.length < 6) return 'La contraseña debe tener al menos 6 caracteres.';
+    return null;
+  }
+
   async function handleSubmit() {
-    if (!email.trim() || !password) { Alert.alert('Error', 'Ingresa correo y contraseña'); return; }
+    const validationError = validateForm();
+    if (validationError) {
+      setFeedback({ type: 'error', title: 'Datos incompletos', message: validationError });
+      showNativeAlert('Error', validationError);
+      return;
+    }
+
     setLoading(true);
+    clearFeedback();
+
     try {
-      if (mode === 'login') await signIn(email.trim(), password);
-      else {
-        const msg = await signUp(email.trim(), password);
-        if (msg) Alert.alert('Verifica tu correo', msg);
-        setMode('login');
+      if (mode === 'login') {
+        await signIn(email.trim(), password);
+        setFeedback({
+          type: 'success',
+          title: 'Sesión iniciada',
+          message: 'Bienvenido. Cargando tu cuenta…',
+        });
+        showNativeAlert('Sesión iniciada', 'Bienvenido a FinApp.');
+      } else {
+        const result = await signUp(email.trim(), password);
+        setFeedback(result);
+        showNativeAlert(result.title ?? 'Registro', result.message);
+        if (result.type === 'info') {
+          setMode('login');
+        }
       }
-    } catch (e: unknown) { Alert.alert('Error', getAuthErrorMessage(e)); }
-    finally { setLoading(false); }
+    } catch (e: unknown) {
+      const message = getAuthErrorMessage(e);
+      setFeedback({
+        type: 'error',
+        title: mode === 'login' ? 'No se pudo iniciar sesión' : 'No se pudo registrar',
+        message,
+      });
+      showNativeAlert('Error', message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -72,7 +130,7 @@ export default function LoginScreen() {
               <AnimatedPressable
                 key={m}
                 style={[styles.toggleBtn, mode === m && styles.toggleActive]}
-                onPress={() => setMode(m)}
+                onPress={() => switchMode(m)}
               >
                 <SText variant="callout" style={{ fontWeight: '800', textTransform: 'uppercase' }}>
                   {m === 'login' ? 'Entrar' : 'Registro'}
@@ -81,6 +139,10 @@ export default function LoginScreen() {
             ))}
           </View>
 
+          {feedback ? (
+            <AuthFeedback type={feedback.type} title={feedback.title} message={feedback.message} />
+          ) : null}
+
           <View style={[styles.inputGroup, brutalBorder(2)]}>
             <Ionicons name="mail-outline" size={18} color={colors.ink} style={styles.inputIcon} />
             <TextInput
@@ -88,9 +150,13 @@ export default function LoginScreen() {
               placeholder="Correo electrónico"
               placeholderTextColor={colors.textMuted}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (feedback) clearFeedback();
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoComplete="email"
             />
           </View>
 
@@ -101,14 +167,24 @@ export default function LoginScreen() {
               placeholder="Contraseña"
               placeholderTextColor={colors.textMuted}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (feedback) clearFeedback();
+              }}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
             <AnimatedPressable style={styles.eyeBtn} onPress={() => setShowPassword(!showPassword)} haptic={false}>
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.ink} />
             </AnimatedPressable>
           </View>
+
+          {mode === 'register' ? (
+            <SText variant="caption2" color={colors.textMuted} style={styles.hint}>
+              Crea tu cuenta con correo y contraseña. No necesitas confirmar por email.
+            </SText>
+          ) : null}
 
           {loading ? (
             <BrutalBox bg={colors.yellow} radius={radii.pill} contentStyle={styles.loadingBtn}>
@@ -133,9 +209,10 @@ const styles = StyleSheet.create({
   topSection: { alignItems: 'center', marginBottom: 28 },
   logoWrap: { width: 80, height: 80, justifyContent: 'center', alignItems: 'center' },
   formCard: { padding: spacing.xl },
-  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.xl },
+  toggleRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.lg },
   toggleBtn: { flex: 1, paddingVertical: 12, borderRadius: radii.pill, alignItems: 'center', borderWidth: 2, borderColor: colors.ink, backgroundColor: colors.bgAlt },
   toggleActive: { backgroundColor: colors.pink },
+  hint: { marginBottom: spacing.md, lineHeight: 18 },
   inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, marginBottom: spacing.md, height: 54 },
   inputIcon: { marginLeft: 14 },
   input: { flex: 1, color: colors.ink, fontSize: 15, paddingHorizontal: 12, fontWeight: '500' },

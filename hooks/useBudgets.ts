@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getBudgets, BudgetWithSpent } from '@/services/budgetService';
+import { useAppRefresh } from '@/hooks/useAppRefresh';
 
 export function useBudgets(month: string) {
   const [data, setData] = useState<BudgetWithSpent[]>([]);
@@ -22,6 +23,8 @@ export function useBudgets(month: string) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useAppRefresh(load, [month]);
 
   return { data, loading, error, refresh: load };
 }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Modal, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useApp } from '@/src/context/AppContext';
@@ -28,8 +28,14 @@ function getGroupKey(dateStr: string): string {
 
 export default function HistoryScreen() {
   const router = useRouter();
-  const { selectedMonth } = useApp();
-  const { data: allTxns, loading } = useTransactions(selectedMonth);
+  const { selectedMonth, refreshKey } = useApp();
+  const { data: allTxns, loading, refresh } = useTransactions(selectedMonth);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh, refreshKey])
+  );
   const [search, setSearch] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   const [catFilter, setCatFilter] = useState<string | null>(null);

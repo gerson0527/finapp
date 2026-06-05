@@ -56,11 +56,12 @@ CREATE INDEX idx_transactions_account ON transactions(account_id);
 CREATE TABLE budgets (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
   category_id UUID REFERENCES categories(id),
   month TEXT NOT NULL,
   limit_amount DECIMAL(15,2) NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(category_id, month, user_id)
+  UNIQUE(user_id, month, title)
 );
 
 -- 6. VISTA: presupuestos con gasto calculado

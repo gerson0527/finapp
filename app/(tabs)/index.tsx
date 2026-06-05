@@ -18,8 +18,8 @@ import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 import { useApp } from '@/src/context/AppContext';
 import { formatCOP } from '@/src/utils/currency';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -110,6 +110,14 @@ export default function HomeScreen() {
   const stats = useMonthlyStats(selectedMonth);
   const budgets = useBudgets(selectedMonth);
   const transactions = useTransactions(selectedMonth);
+
+  useFocusEffect(
+    useCallback(() => {
+      stats.refresh();
+      budgets.refresh();
+      transactions.refresh();
+    }, [stats.refresh, budgets.refresh, transactions.refresh, refreshKey])
+  );
   const [balance, setBalance] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);

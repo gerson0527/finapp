@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getSavingsGoals, SavingsGoal } from '@/services/savingsService';
+import { useAppRefresh } from '@/hooks/useAppRefresh';
 
 export function useSavingsGoals() {
   const [data, setData] = useState<SavingsGoal[]>([]);
@@ -22,6 +23,8 @@ export function useSavingsGoals() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useAppRefresh(load);
 
   return { data, loading, error, refresh: load };
 }

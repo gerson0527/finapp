@@ -20,6 +20,7 @@ import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import HighlightText from '@/src/components/HighlightText';
 import FadeInView from '@/src/components/FadeInView';
+import { useApp } from '@/src/context/AppContext';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 const presetIcons = ['airplane', 'shield-checkmark', 'laptop', 'home', 'car', 'heart', 'school', 'gift'];
@@ -30,6 +31,7 @@ interface SavingsGoalsScreenProps {
 }
 
 export default function SavingsGoalsScreen({ showAddButton }: SavingsGoalsScreenProps) {
+  const { triggerRefresh } = useApp();
   const goals = useSavingsGoals();
   const [showCreate, setShowCreate] = useState(false);
   const [showContribute, setShowContribute] = useState<string | null>(null);
@@ -54,6 +56,7 @@ export default function SavingsGoalsScreen({ showAddButton }: SavingsGoalsScreen
         target_amount: parseFloat(targetAmount),
       });
       goals.refresh();
+      triggerRefresh();
       setShowCreate(false);
       setTitle('');
       setSubtitle('');
@@ -74,6 +77,7 @@ export default function SavingsGoalsScreen({ showAddButton }: SavingsGoalsScreen
     try {
       await addContribution(goalId, amount);
       goals.refresh();
+      triggerRefresh();
       setShowContribute(null);
       setContributeAmount('');
     } catch (e: any) {

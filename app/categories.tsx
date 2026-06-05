@@ -5,7 +5,6 @@ import {
   ScrollView,
   Modal,
   TextInput,
-  Alert,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +24,8 @@ import BrutalButton from '@/src/components/BrutalButton';
 import HighlightText from '@/src/components/HighlightText';
 import FadeInView from '@/src/components/FadeInView';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
+import AuthFeedback, { AuthFeedbackType } from '@/src/components/AuthFeedback';
+import { useApp } from '@/src/context/AppContext';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 const presetIcons = [
@@ -137,19 +138,26 @@ function CategorySection({
 }
 
 export default function CategoriesScreen() {
+  const { triggerRefresh } = useApp();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [formFeedback, setFormFeedback] = useState<{
+    type: AuthFeedbackType;
+    title?: string;
+    message: string;
+  } | null>(null);
 
   const loadCategories = useCallback(async () => {
     try {
       const data = await getCategories();
       setCategories(data);
     } catch {
-      Alert.alert('Error', 'No se pudieron cargar las categorías');
+      // lista vacía; el usuario puede reintentar al volver a entrar
     } finally {
       setLoading(false);
     }
@@ -183,15 +191,22 @@ export default function CategoriesScreen() {
     setModalVisible(false);
     setEditing(null);
     setForm(emptyForm());
+    setConfirmDelete(false);
+    setFormFeedback(null);
   };
 
   async function handleSave() {
     if (!form.name.trim()) {
-      Alert.alert('Error', 'Escribe un nombre para la categoría');
+      setFormFeedback({
+        type: 'error',
+        title: 'Nombre requerido',
+        message: 'Escribe un nombre para la categoría.',
+      });
       return;
     }
 
     setSaving(true);
+    setFormFeedback(null);
     try {
       const dto = {
         name: form.name.trim(),
@@ -207,40 +222,39 @@ export default function CategoriesScreen() {
       }
 
       await loadCategories();
+      triggerRefresh();
       closeModal();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'No se pudo guardar');
+      setFormFeedback({
+        type: 'error',
+        title: 'No se pudo guardar',
+        message: e.message || 'Inténtalo de nuevo.',
+      });
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete() {
+  async function handleDeleteConfirm() {
     if (!editing) return;
 
-    Alert.alert(
-      'Eliminar categoría',
-      `¿Eliminar "${editing.name}"? Solo se bloquea si ya tienes transacciones con esta categoría.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            setSaving(true);
-            try {
-              await deleteCategory(editing.id);
-              await loadCategories();
-              closeModal();
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'No se pudo eliminar');
-            } finally {
-              setSaving(false);
-            }
-          },
-        },
-      ]
-    );
+    setSaving(true);
+    setFormFeedback(null);
+    try {
+      await deleteCategory(editing.id);
+      await loadCategories();
+      triggerRefresh();
+      closeModal();
+    } catch (e: any) {
+      setConfirmDelete(false);
+      setFormFeedback({
+        type: 'error',
+        title: 'No se pudo eliminar',
+        message: e.message || 'Inténtalo de nuevo.',
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -307,9 +321,42 @@ export default function CategoriesScreen() {
             <Animated.View entering={SlideInDown.springify().damping(20)} style={{ padding: 20 }}>
               <BrutalBox contentStyle={styles.modalContent}>
                 <SText variant="title3" style={{ fontWeight: '700', marginBottom: spacing.lg }}>
-                  {editing ? 'Editar categoría' : 'Nueva categoría'}
+                  {confirmDelete ? '¿Eliminar categoría?' : editing ? 'Editar categoría' : 'Nueva categoría'}
                 </SText>
 
+                {formFeedback ? (
+                  <AuthFeedback
+                    type={formFeedback.type}
+                    title={formFeedback.title}
+                    message={formFeedback.message}
+                  />
+                ) : null}
+
+                {confirmDelete && editing ? (
+                  <View>
+                    <SText variant="body" style={{ marginBottom: spacing.lg }}>
+                      ¿Eliminar "{editing.name}"? Solo se bloquea si ya tienes transacciones con esta categoría.
+                    </SText>
+                    <View style={styles.modalActions}>
+                      <AnimatedPressable
+                        style={[styles.cancelBtn, brutalBorder(2)]}
+                        onPress={() => setConfirmDelete(false)}
+                        disabled={saving}
+                      >
+                        <SText variant="callout" style={{ fontWeight: '600' }}>Cancelar</SText>
+                      </AnimatedPressable>
+                      <View style={{ flex: 1 }}>
+                        <BrutalButton
+                          label={saving ? 'Eliminando...' : 'Sí, eliminar'}
+                          onPress={handleDeleteConfirm}
+                          disabled={saving}
+                          small
+                        />
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                <View>
                 <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Tipo</SText>
                 <View style={styles.typeRow}>
                   {([
@@ -390,14 +437,19 @@ export default function CategoriesScreen() {
 
                 {editing && (
                   <AnimatedPressable
-                    onPress={handleDelete}
+                    onPress={() => {
+                      setFormFeedback(null);
+                      setConfirmDelete(true);
+                    }}
                     disabled={saving}
                     style={[styles.deleteBtn, brutalBorder(2)]}
                   >
                     <SText variant="callout" color={colors.expense} style={{ fontWeight: '700' }}>
-                      {saving ? '...' : 'Eliminar categoría'}
+                      Eliminar categoría
                     </SText>
                   </AnimatedPressable>
+                )}
+                </View>
                 )}
               </BrutalBox>
             </Animated.View>

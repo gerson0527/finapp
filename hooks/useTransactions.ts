@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getTransactions, Transaction } from '@/services/transactionService';
+import { useApp } from '@/src/context/AppContext';
 
 export function useTransactions(month: string) {
+  const { refreshKey } = useApp();
   const [data, setData] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export function useTransactions(month: string) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [month, channelId]);
+  }, [month, channelId, refreshKey]);
 
   return { data, loading, error, refresh: load };
 }
