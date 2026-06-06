@@ -102,6 +102,37 @@ export async function compareMonthBalances(
   };
 }
 
+export async function adjustMonthlyBalancesAfterTransactionRemoval(
+  transactionDate: string,
+  type: 'income' | 'expense' | 'transfer',
+  amount: number
+): Promise<void> {
+  const userId = await getCurrentUserIdOrNull();
+  if (!userId) return;
+
+  const month = transactionDate.slice(0, 7);
+  const adjustment = type === 'income' ? -Number(amount) : Number(amount);
+
+  const { data, error } = await supabase
+    .from('monthly_balance_config')
+    .select('month, net_balance')
+    .eq('user_id', userId)
+    .gte('month', month);
+
+  if (error) throw new Error(error.message);
+  if (!data?.length) return;
+
+  await Promise.all(
+    data.map((row) =>
+      supabase
+        .from('monthly_balance_config')
+        .update({ net_balance: Number(row.net_balance) + adjustment })
+        .eq('user_id', userId)
+        .eq('month', row.month)
+    )
+  );
+}
+
 export async function configureMonthBalance(month: string, netBalance: number): Promise<void> {
   const userId = await getCurrentUserId();
   const account = await getMainAccount();

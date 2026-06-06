@@ -19,8 +19,10 @@ import BalanceComparisonView from '@/src/components/BalanceComparisonView';
 import SkeletonLoader from '@/src/components/SkeletonLoader';
 import HighlightText from '@/src/components/HighlightText';
 import { colors, radii, spacing } from '@/src/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function CompareScreen() {
+  const insets = useSafeAreaInsets();
   const { refreshKey } = useApp();
   const currentMonth = getCurrentMonth();
   const [compareMonth, setCompareMonth] = useState(getPreviousMonth(currentMonth));
@@ -129,7 +131,10 @@ export default function CompareScreen() {
 
       <Modal visible={pickerVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setPickerVisible(false)}>
-          <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.modalWrap}>
+          <Animated.View
+            entering={SlideInDown.springify().damping(20)}
+            style={[styles.modalWrap, { marginBottom: Math.max(insets.bottom, 20) }]}
+          >
             <BrutalBox contentStyle={styles.modalContent}>
               <SText variant="headline" style={{ fontWeight: '800', marginBottom: spacing.md }}>
                 COMPARAR CON

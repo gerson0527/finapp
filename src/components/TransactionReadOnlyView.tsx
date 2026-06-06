@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
@@ -10,11 +10,12 @@ import {
   isSavingsContribution,
   getTransactionSourceLabel,
 } from '@/lib/transactionHelpers';
+import { showAlert } from '@/lib/platformAlert';
 import SText from '@/src/components/SText';
 import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
-import HighlightText from '@/src/components/HighlightText';
+import ConfirmModal from '@/src/components/ConfirmModal';
 import { formatCOP } from '@/src/utils/currency';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
 
@@ -31,37 +32,34 @@ export default function TransactionReadOnlyView({
 }: TransactionReadOnlyViewProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const isIncome = transaction.type === 'income';
   const cat = transaction.category;
   const sourceLabel = getTransactionSourceLabel(transaction);
   const title = transaction.description || cat?.name || 'Movimiento';
   const dateLabel = format(parseISO(transaction.date), "d 'de' MMMM yyyy", { locale: es });
 
-  function handleDelete() {
+  function handleDeletePress() {
     if (!onDelete) return;
-    Alert.alert(
-      'Eliminar movimiento',
-      isBudgetPayment(transaction)
-        ? `¿Eliminar el pago de "${title}"? Se actualizará tu presupuesto.`
-        : `¿Eliminar "${title}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await onDelete();
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'No se pudo eliminar');
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+    setDeleteError(null);
+    setDeleteConfirmVisible(true);
+  }
+
+  async function handleDeleteConfirm() {
+    if (!onDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDelete();
+      setDeleteConfirmVisible(false);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'No se pudo eliminar';
+      setDeleteError(message);
+      showAlert('Error', message);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function goToSource() {
@@ -72,24 +70,28 @@ export default function TransactionReadOnlyView({
     }
   }
 
+  const deleteMessage = isBudgetPayment(transaction)
+    ? `¿Eliminar el pago de "${title}"? Se actualizará tu presupuesto.`
+    : `¿Eliminar "${title}"?`;
+
   return (
     <>
-      <View style={styles.header}>
-        <AnimatedPressable onPress={onClose}>
-          <SText variant="callout" style={{ fontWeight: '700' }}>✕ Cerrar</SText>
-        </AnimatedPressable>
-        {onDelete ? (
-          <AnimatedPressable onPress={handleDelete} disabled={deleting}>
-            <SText variant="callout" color={colors.error} style={{ fontWeight: '700' }}>
+      {onDelete ? (
+        <View style={styles.actionBar}>
+          <AnimatedPressable
+            onPress={handleDeletePress}
+            disabled={deleting}
+            style={[styles.deleteBtn, brutalBorder(2), deleting && styles.deleteBtnDisabled]}
+          >
+            <Ionicons name="trash-outline" size={16} color={colors.expense} />
+            <SText variant="caption2" color={colors.expense} style={{ fontWeight: '800' }}>
               {deleting ? 'Eliminando...' : 'Eliminar'}
             </SText>
           </AnimatedPressable>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <HighlightText variant="title2">Detalle</HighlightText>
-
         {sourceLabel ? (
           <View style={[styles.sourceBadge, brutalBorder(2), {
             backgroundColor: isBudgetPayment(transaction) ? colors.surfaceAlt : colors.incomeBg,
@@ -146,8 +148,8 @@ export default function TransactionReadOnlyView({
         <BrutalBox bg={colors.surfaceAlt} radius={radii.md} shadow={2} contentStyle={styles.hintBox}>
           <SText variant="footnote" color={colors.textSecondary} style={{ lineHeight: 20 }}>
             {isBudgetPayment(transaction)
-              ? 'Este pago está vinculado a un presupuesto. No se edita como una transacción normal — gestiónalo desde Presupuestos.'
-              : 'Este aporte está vinculado a una meta de ahorro. Gestiónalo desde la pestaña Ahorros.'}
+              ? 'Este pago está vinculado a un presupuesto. Puedes eliminarlo aquí o registrar otro pago desde Presupuestos.'
+              : 'Este aporte está vinculado a una meta de ahorro. Puedes eliminarlo aquí o gestionarlo en Ahorros.'}
           </SText>
         </BrutalBox>
 
@@ -157,18 +159,45 @@ export default function TransactionReadOnlyView({
           style={{ marginTop: spacing.lg }}
         />
       </ScrollView>
+
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title="Eliminar movimiento"
+        message={deleteMessage}
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleting}
+        error={deleteError}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteConfirmVisible(false);
+            setDeleteError(null);
+          }
+        }}
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
+  actionBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.expenseBg,
+  },
+  deleteBtnDisabled: { opacity: 0.6 },
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120 },
   sourceBadge: {
     alignSelf: 'flex-start',

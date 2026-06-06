@@ -14,9 +14,11 @@ interface BudgetCardProps {
   budget: BudgetWithSpent;
   index?: number;
   onPay?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-export default function BudgetCard({ budget, index = 0, onPay }: BudgetCardProps) {
+export default function BudgetCard({ budget, index = 0, onPay, onEdit, onDelete }: BudgetCardProps) {
   const pct = Number(budget.percentage);
   const isExceeded = pct >= 100;
   const isWarning = pct >= 80 && pct < 100;
@@ -51,10 +53,10 @@ export default function BudgetCard({ budget, index = 0, onPay }: BudgetCardProps
             </View>
             <View style={styles.categoryInfo}>
               <View style={styles.nameRow}>
-                <SText variant="body" style={{ fontWeight: '800' }}>{budget.title}</SText>
+                <SText variant="body" style={{ fontWeight: '800', flex: 1 }} numberOfLines={1}>{budget.title}</SText>
                 {isExceeded && <Ionicons name="warning" size={16} color={colors.expense} />}
               </View>
-              <SText variant="caption2" color={colors.textMuted} style={{ marginTop: 2 }}>
+              <SText variant="caption2" color={colors.textMuted} style={{ marginTop: 2 }} numberOfLines={1}>
                 {budget.category_name}
                 {' · '}
                 {isExceeded
@@ -80,6 +82,23 @@ export default function BudgetCard({ budget, index = 0, onPay }: BudgetCardProps
           </SText>
         </View>
 
+        {(onEdit || onDelete) ? (
+          <View style={styles.manageRow}>
+            {onEdit ? (
+              <AnimatedPressable onPress={onEdit} style={[styles.manageBtn, brutalBorder()]}>
+                <Ionicons name="create-outline" size={16} color={colors.ink} />
+                <SText variant="caption2" style={{ fontWeight: '800' }}>Editar</SText>
+              </AnimatedPressable>
+            ) : null}
+            {onDelete ? (
+              <AnimatedPressable onPress={onDelete} style={[styles.manageBtn, styles.deleteBtn, brutalBorder()]}>
+                <Ionicons name="trash-outline" size={16} color={colors.expense} />
+                <SText variant="caption2" color={colors.expense} style={{ fontWeight: '800' }}>Eliminar</SText>
+              </AnimatedPressable>
+            ) : null}
+          </View>
+        ) : null}
+
         {onPay ? (
           <AnimatedPressable onPress={onPay} style={styles.payWrap}>
             <View style={[styles.payBtn, brutalBorder(2), { backgroundColor: colors.yellow }]}>
@@ -101,7 +120,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: spacing.md,
   },
-  categoryRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
   iconWrap: {
     width: 44,
     height: 44,
@@ -109,16 +128,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  categoryInfo: { marginLeft: spacing.md, flex: 1 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  categoryInfo: { marginLeft: spacing.md, flex: 1, minWidth: 0 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   pctBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radii.sm,
     marginLeft: 8,
+    flexShrink: 0,
   },
   footer: { marginTop: spacing.sm },
-  payWrap: { marginTop: spacing.md },
+  manageRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  manageBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceAlt,
+  },
+  deleteBtn: { backgroundColor: colors.expenseBg },
+  payWrap: { marginTop: spacing.sm },
   payBtn: {
     flexDirection: 'row',
     alignItems: 'center',

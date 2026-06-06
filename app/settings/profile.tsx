@@ -71,7 +71,7 @@ export default function ProfileSettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Sobre mí' }} />
-      <BrutalScreen showDecor={false}>
+      <BrutalScreen showDecor={false} skipTopInset>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <FadeInView>
             <BrutalBox bg={colors.yellow} shadow={4} contentStyle={styles.hero}>

@@ -18,6 +18,7 @@ import BrutalBox from '@/src/components/BrutalBox';
 import { formatCOP } from '@/src/utils/currency';
 import { isEditableTransaction } from '@/lib/transactionHelpers';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { parseISO, isToday, isYesterday, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -54,6 +55,7 @@ function SummaryPill({
 }
 
 export default function HistoryScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { refreshKey } = useApp();
   const [historyMonth, setHistoryMonth] = useState(getCurrentMonth);
@@ -244,7 +246,10 @@ export default function HistoryScreen() {
 
       <Modal visible={filterVisible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setFilterVisible(false)}>
-          <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.modalWrap}>
+          <Animated.View
+            entering={SlideInDown.springify().damping(20)}
+            style={[styles.modalWrap, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+          >
             <TouchableOpacity activeOpacity={1}>
               <BrutalBox contentStyle={styles.modalContent}>
                 <SText variant="title3" style={{ fontWeight: '800', textTransform: 'uppercase', marginBottom: 4 }}>

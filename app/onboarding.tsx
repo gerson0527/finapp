@@ -8,7 +8,6 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -37,7 +36,6 @@ const ACCOUNT_TYPES: { id: AccountType; label: string; icon: keyof typeof Ionico
 
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { refreshOnboarding } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -96,7 +94,6 @@ export default function OnboardingScreen() {
     try {
       await finishOnboarding(incomeNum);
       await refreshOnboarding();
-      router.replace('/(tabs)');
     } catch (e: unknown) {
       Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo finalizar');
     } finally {

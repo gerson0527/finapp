@@ -55,13 +55,13 @@ export default function TransactionItem({
           {title}
         </SText>
         {subtitleParts.length > 0 && (
-          <SText variant="caption2" color={colors.textMuted} style={{ marginTop: 3 }}>
+          <SText variant="caption2" color={colors.textMuted} style={{ marginTop: 3 }} numberOfLines={1}>
             {subtitleParts.join(' · ')}
           </SText>
         )}
       </View>
       <View style={[styles.amountBadge, { backgroundColor: isIncome ? colors.incomeBg : colors.expenseBg }]}>
-        <SText variant="amountSmall" color={isIncome ? '#15803D' : colors.expense}>
+        <SText variant="amountSmall" color={isIncome ? '#15803D' : colors.expense} numberOfLines={1} adjustsFontSizeToFit>
           {isIncome ? '+' : '-'}{formatCOP(transaction.amount)}
         </SText>
       </View>
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.ink,
   },
-  info: { flex: 1, marginLeft: 12 },
+  info: { flex: 1, marginLeft: 12, minWidth: 0 },
   amountBadge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -114,5 +114,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     borderWidth: 2,
     borderColor: colors.ink,
+    flexShrink: 0,
+    maxWidth: '42%',
   },
 });

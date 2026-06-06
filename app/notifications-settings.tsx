@@ -73,7 +73,7 @@ export default function NotificationsSettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Notificaciones' }} />
-      <BrutalScreen showDecor={false}>
+      <BrutalScreen showDecor={false} skipTopInset>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <FadeInView>
             <SText variant="body" color={colors.textSecondary} style={styles.intro}>

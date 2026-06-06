@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, View, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/src/context/AppContext';
@@ -17,6 +18,7 @@ interface ExportModalProps {
 }
 
 export default function ExportModal({ visible, onClose }: ExportModalProps) {
+  const insets = useSafeAreaInsets();
   const { selectedMonth } = useApp();
   const [month, setMonth] = useState(selectedMonth);
   const [loading, setLoading] = useState<'csv' | 'pdf' | null>(null);
@@ -40,8 +42,15 @@ export default function ExportModal({ visible, onClose }: ExportModalProps) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.sheetWrap}>
+      <TouchableOpacity
+        style={[styles.overlay, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <Animated.View
+          entering={SlideInDown.springify().damping(20)}
+          style={[styles.sheetWrap, { marginBottom: Math.max(insets.bottom, spacing.sm) }]}
+        >
           <TouchableOpacity activeOpacity={1}>
             <BrutalBox bg={colors.surface} radius={radii.xl} shadow={4} contentStyle={styles.sheet}>
               <View style={styles.header}>

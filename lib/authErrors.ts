@@ -12,6 +12,8 @@ const MESSAGES: Record<string, string> = {
     'El proveedor Email está desactivado en Supabase. Ve a Authentication → Providers (Proveedores) → Email y actívalo. Tu pantalla de "Registros de usuarios" ya está bien; falta encender Email en Proveedores.',
   email_provider_disabled:
     'El proveedor Email está desactivado. Authentication → Providers → Email → activar el proveedor. "Confirmar correo" puede quedar apagado.',
+  unexpected_failure:
+    'Error interno de autenticación en Supabase. Si usaste datos de prueba creados por SQL, ejecuta: npm run db:fix-auth',
 };
 
 function codeFromError(error: unknown): string | undefined {
@@ -30,6 +32,9 @@ export function getAuthErrorMessage(error: unknown): string {
   if (error instanceof AuthError) {
     if (error.message === 'Invalid login credentials') {
       return MESSAGES.invalid_credentials;
+    }
+    if (error.message === 'Database error querying schema') {
+      return MESSAGES.unexpected_failure;
     }
   }
 

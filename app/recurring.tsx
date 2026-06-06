@@ -76,7 +76,7 @@ export default function RecurringScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Gastos recurrentes' }} />
-      <BrutalScreen>
+      <BrutalScreen skipTopInset>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <HighlightText variant="title2">Recurrentes</HighlightText>
           <SText variant="footnote" color={colors.textMuted} style={{ marginTop: 6, marginBottom: spacing.lg }}>
@@ -112,15 +112,15 @@ export default function RecurringScreen() {
                 >
                   <View style={styles.cardTop}>
                     <View style={[styles.catDot, { backgroundColor: item.category?.color ?? colors.pink }]} />
-                    <View style={{ flex: 1 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
                       <SText variant="headline" style={{ fontWeight: '800' }} numberOfLines={1}>
                         {item.description}
                       </SText>
-                      <SText variant="caption2" color={colors.textMuted}>
+                      <SText variant="caption2" color={colors.textMuted} numberOfLines={1}>
                         {item.category?.name ?? 'Sin categoría'} · {item.account?.name ?? 'Cuenta'}
                       </SText>
                     </View>
-                    <SText variant="headline" style={{ fontWeight: '900' }}>
+                    <SText variant="headline" style={{ fontWeight: '900', flexShrink: 0, maxWidth: '38%' }} numberOfLines={1} adjustsFontSizeToFit>
                       {formatCOP(Number(item.amount))}
                     </SText>
                   </View>

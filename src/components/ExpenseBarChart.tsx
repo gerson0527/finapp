@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { useChartWidth } from '@/src/hooks/useChartWidth';
 import Svg, { Rect } from 'react-native-svg';
 import SText from '@/src/components/SText';
 import { formatMonthLabel } from '@/lib/month';
@@ -13,13 +14,17 @@ interface ExpenseBarChartProps {
 }
 
 export default function ExpenseBarChart({ data, height = 160 }: ExpenseBarChartProps) {
+  const maxWidth = useChartWidth();
   const max = Math.max(...data.map((d) => d.total), 1);
-  const barWidth = 28;
   const gap = 12;
+  const barWidth = data.length > 0
+    ? Math.min(28, Math.max(18, Math.floor((maxWidth - gap) / data.length - gap)))
+    : 28;
   const chartWidth = data.length * (barWidth + gap);
+  const scrollable = chartWidth > maxWidth;
 
-  return (
-    <View style={styles.wrap}>
+  const chart = (
+    <>
       <Svg width={chartWidth} height={height}>
         {data.map((item, i) => {
           const barHeight = Math.max((item.total / max) * (height - 24), item.total > 0 ? 6 : 0);
@@ -52,12 +57,25 @@ export default function ExpenseBarChart({ data, height = 160 }: ExpenseBarChartP
           </View>
         ))}
       </View>
+    </>
+  );
+
+  return (
+    <View style={styles.wrap}>
+      {scrollable ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {chart}
+        </ScrollView>
+      ) : (
+        chart
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', paddingVertical: spacing.sm },
+  wrap: { alignItems: 'center', paddingVertical: spacing.sm, width: '100%' },
+  scrollContent: { alignItems: 'center' },
   labels: {
     flexDirection: 'row',
     marginTop: spacing.sm,

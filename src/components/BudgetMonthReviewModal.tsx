@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Modal, ScrollView, TextInput, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { BudgetWithSpent } from '@/services/budgetService';
@@ -30,6 +31,7 @@ export default function BudgetMonthReviewModal({
   onConfirm,
   onDismiss,
 }: BudgetMonthReviewModalProps) {
+  const insets = useSafeAreaInsets();
   const [limits, setLimits] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -61,14 +63,14 @@ export default function BudgetMonthReviewModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}>
         <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.wrap}>
           <BrutalBox shadow={5} contentStyle={styles.content}>
             <View style={styles.header}>
-              <View style={[styles.icon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+              <View style={[styles.icon, brutalBorder(), { backgroundColor: colors.yellow }]}>
                 <Ionicons name="calendar" size={22} color={colors.ink} />
               </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={styles.headerText}>
                 <SText variant="title3" style={{ fontWeight: '800', textTransform: 'uppercase' }}>
                   Nuevo mes
                 </SText>
@@ -89,18 +91,24 @@ export default function BudgetMonthReviewModal({
 
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {budgets.map((b, i) => (
-                <View
-                  key={b.id}
-                  style={[styles.row, i > 0 && styles.rowBorder]}
-                >
-                  <View style={[styles.rowIcon, brutalBorder(2), { backgroundColor: b.category_color || colors.yellow }]}>
-                    <Ionicons name={(b.category_icon as any) || 'ellipse'} size={16} color={colors.ink} />
+                <View key={b.id} style={[styles.row, i > 0 && styles.rowBorder]}>
+                  <View style={styles.rowHeader}>
+                    <View
+                      style={[styles.rowIcon, brutalBorder(), { backgroundColor: b.category_color || colors.yellow }]}
+                    >
+                      <Ionicons name={(b.category_icon as any) || 'ellipse'} size={16} color={colors.ink} />
+                    </View>
+                    <View style={styles.rowInfo}>
+                      <SText variant="body" style={{ fontWeight: '800' }} numberOfLines={1}>
+                        {b.title}
+                      </SText>
+                      <SText variant="caption2" color={colors.textMuted} numberOfLines={1}>
+                        {b.category_name}
+                      </SText>
+                    </View>
                   </View>
-                  <View style={styles.rowInfo}>
-                    <SText variant="body" style={{ fontWeight: '800' }}>{b.title}</SText>
-                    <SText variant="caption2" color={colors.textMuted}>{b.category_name}</SText>
-                  </View>
-                  <View style={[styles.limitWrap, brutalBorder(2)]}>
+
+                  <View style={[styles.limitWrap, brutalBorder()]}>
                     <SText variant="caption2" style={{ fontWeight: '700' }}>$</SText>
                     <TextInput
                       style={styles.limitInput}
@@ -109,8 +117,10 @@ export default function BudgetMonthReviewModal({
                         setLimits((prev) => ({ ...prev, [b.id]: parseCOPDigits(t) }))
                       }
                       keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
                     />
-                    <SText variant="caption2" color={colors.textMuted} style={{ fontWeight: '700' }}>
+                    <SText variant="caption2" color={colors.textMuted} style={styles.copLabel}>
                       COP
                     </SText>
                   </View>
@@ -139,38 +149,45 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
-    padding: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
-  wrap: { maxHeight: '88%' },
-  content: { padding: spacing.xl },
+  wrap: { maxHeight: '88%', width: '100%' },
+  content: { padding: spacing.lg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
+  headerText: { flex: 1, minWidth: 0 },
   icon: {
     width: 48,
     height: 48,
     borderRadius: radii.sm,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
   infoBox: { padding: spacing.md, marginBottom: spacing.lg },
   list: { maxHeight: 280, marginBottom: spacing.lg },
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.md,
   },
   rowBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
+  rowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   rowIcon: {
     width: 36,
     height: 36,
     borderRadius: radii.sm,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
   rowInfo: { flex: 1, minWidth: 0 },
   limitWrap: {
@@ -178,18 +195,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: radii.sm,
-    paddingHorizontal: 8,
-    gap: 2,
-    minWidth: 100,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    gap: 6,
+    alignSelf: 'stretch',
   },
   limitInput: {
     flex: 1,
     color: colors.ink,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
-    paddingVertical: 8,
+    paddingVertical: 10,
     textAlign: 'right',
+    minWidth: 0,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
   },
+  copLabel: { fontWeight: '700', flexShrink: 0 },
   cancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
 });

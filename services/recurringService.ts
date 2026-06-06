@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
-import { getCurrentUserId, getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
+import { getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
+import { getCurrentMonth } from '@/lib/month';
 import type { Transaction } from '@/services/transactionService';
 
 export interface RecurringTemplate {
@@ -16,10 +17,12 @@ export interface RecurringTemplate {
   account?: { name: string };
 }
 
-/** Genera copias del mes para plantillas recurrentes que aún no existen */
+/** Genera copias del mes para plantillas recurrentes que aún no existen (solo mes actual). */
 export async function ensureRecurringTransactions(month: string): Promise<number> {
   const userId = await getCurrentUserIdOrNull();
   if (!userId) return 0;
+
+  if (month !== getCurrentMonth()) return 0;
 
   const { data, error } = await supabase.rpc('generate_recurring_transactions', {
     p_month: month,

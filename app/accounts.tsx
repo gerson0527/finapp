@@ -27,6 +27,7 @@ import AnimatedPressable from '@/src/components/AnimatedPressable';
 import SkeletonLoader from '@/src/components/SkeletonLoader';
 import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TYPES: CreateAccountDTO['type'][] = ['checking', 'savings', 'cash', 'credit'];
 const TYPE_LABELS: Record<CreateAccountDTO['type'], string> = {
@@ -37,6 +38,7 @@ const TYPE_LABELS: Record<CreateAccountDTO['type'], string> = {
 };
 
 export default function AccountsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { triggerRefresh } = useApp();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -82,7 +84,7 @@ export default function AccountsScreen() {
   }
 
   return (
-    <BrutalScreen>
+    <BrutalScreen skipTopInset>
       <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.topRow}>
             <HighlightText variant="title2">Mis cuentas</HighlightText>
@@ -120,7 +122,10 @@ export default function AccountsScreen() {
 
         <Modal visible={showModal} transparent animationType="fade">
           <View style={styles.overlay}>
-            <Animated.View entering={SlideInDown.springify()} style={styles.modalWrap}>
+            <Animated.View
+              entering={SlideInDown.springify()}
+              style={[styles.modalWrap, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+            >
               <BrutalBox bg={colors.yellow} contentStyle={styles.modalContent}>
                 <SText variant="title3" style={{ fontWeight: '800', marginBottom: spacing.lg }}>Nueva cuenta</SText>
                 <TextInput

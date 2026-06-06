@@ -7,6 +7,8 @@ interface BrutalScreenProps {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   showDecor?: boolean;
+  /** Evita doble padding cuando la pantalla ya tiene header nativo del Stack. */
+  skipTopInset?: boolean;
 }
 
 export function BrutalDecorations() {
@@ -19,11 +21,16 @@ export function BrutalDecorations() {
   );
 }
 
-export default function BrutalScreen({ children, style, showDecor = true }: BrutalScreenProps) {
+export default function BrutalScreen({
+  children,
+  style,
+  showDecor = true,
+  skipTopInset = false,
+}: BrutalScreenProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }, style]}>
+    <View style={[styles.screen, !skipTopInset && { paddingTop: insets.top }, style]}>
       {showDecor && <BrutalDecorations />}
       {children}
     </View>

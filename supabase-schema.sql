@@ -4,14 +4,19 @@
 -- ============================================================
 
 -- 1. TABLA DE CATEGORÍAS
+-- user_id NULL = categorías del sistema (visibles para todos)
+-- user_id = auth.uid() = categorías personalizadas del usuario
 CREATE TABLE categories (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   icon TEXT NOT NULL,
   color TEXT NOT NULL,
   type TEXT CHECK (type IN ('expense', 'income', 'both')) DEFAULT 'both',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX idx_categories_user_id ON categories(user_id);
 
 -- 2. TABLA DE PERFILES
 CREATE TABLE profiles (
@@ -122,7 +127,7 @@ $$ LANGUAGE plpgsql;
 -- SEED DATA
 -- ============================================================
 
--- Categorías (compartidas entre usuarios)
+-- Categorías del sistema (user_id NULL, visibles para todos)
 INSERT INTO categories (name, icon, color, type) VALUES
 ('Alimentación', 'restaurant', '#AAFF00', 'expense'),
 ('Transporte', 'car', '#FFA500', 'expense'),

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useChartWidth } from '@/src/hooks/useChartWidth';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import SText from '@/src/components/SText';
 import { formatMonthLabel } from '@/lib/month';
@@ -13,9 +14,9 @@ interface NetBalanceLineChartProps {
 }
 
 export default function NetBalanceLineChart({ data, height = 140 }: NetBalanceLineChartProps) {
+  const width = useChartWidth(8);
   const values = data.map((d) => d.net);
   const maxAbs = Math.max(...values.map(Math.abs), 1);
-  const width = 280;
   const padX = 16;
   const padY = 20;
   const chartH = height - padY * 2;
@@ -84,6 +85,6 @@ export default function NetBalanceLineChart({ data, height = 140 }: NetBalanceLi
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', paddingVertical: spacing.sm },
+  wrap: { alignItems: 'center', paddingVertical: spacing.sm, width: '100%' },
   labels: { flexDirection: 'row', marginTop: spacing.sm },
 });

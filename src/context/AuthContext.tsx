@@ -7,6 +7,7 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   onboardingComplete: boolean | null;
+  pendingWelcome: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (
     email: string,
@@ -14,6 +15,7 @@ interface AuthContextType {
   ) => Promise<{ type: 'success' | 'info'; title: string; message: string }>;
   signOut: () => Promise<void>;
   refreshOnboarding: () => Promise<void>;
+  completeWelcome: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const [pendingWelcome, setPendingWelcome] = useState(false);
 
   const refreshOnboarding = useCallback(async () => {
     if (!session) {
@@ -51,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setOnboardingComplete(null);
+        setPendingWelcome(false);
       }
       setIsLoading(false);
     }
@@ -70,11 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    setPendingWelcome(true);
   }
 
   async function signUp(email: string, password: string) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
+    if (data.session) setPendingWelcome(true);
 
     if (data.user?.identities?.length === 0) {
       const err = new Error('Este correo ya está registrado. Inicia sesión en su lugar.');
@@ -100,6 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    setPendingWelcome(false);
+  }
+
+  function completeWelcome() {
+    setPendingWelcome(false);
   }
 
   return (
@@ -108,10 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         isLoading,
         onboardingComplete,
+        pendingWelcome,
         signIn,
         signUp,
         signOut,
         refreshOnboarding,
+        completeWelcome,
       }}
     >
       {children}

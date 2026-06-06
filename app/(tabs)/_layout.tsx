@@ -52,7 +52,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="compare"
-        options={{ title: 'Comparar', tabBarIcon: ({ focused }) => <TabIcon name="analytics" focused={focused} /> }}
+        options={{ title: 'Comp.', tabBarIcon: ({ focused }) => <TabIcon name="analytics" focused={focused} /> }}
       />
       <Tabs.Screen
         name="more"

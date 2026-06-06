@@ -41,7 +41,7 @@ export default function EmailSettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Correo electrónico' }} />
-      <BrutalScreen showDecor={false}>
+      <BrutalScreen showDecor={false} skipTopInset>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <FadeInView>
             <SText variant="body" color={colors.textSecondary} style={styles.intro}>

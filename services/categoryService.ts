@@ -7,6 +7,7 @@ export interface Category {
   icon: string;
   color: string;
   type: 'expense' | 'income' | 'both';
+  user_id?: string | null;
 }
 
 export interface CreateCategoryDTO {
@@ -19,21 +20,29 @@ export interface CreateCategoryDTO {
 export type UpdateCategoryDTO = Partial<CreateCategoryDTO>;
 
 export async function getCategories(type?: 'income' | 'expense'): Promise<Category[]> {
-  let query = supabase.from('categories').select('*').order('name');
+  const userId = await getCurrentUserId();
+  let query = supabase
+    .from('categories')
+    .select('*')
+    .or(`user_id.is.null,user_id.eq.${userId}`)
+    .order('name');
+
   if (type === 'income') {
     query = query.in('type', ['income', 'both']);
   } else if (type === 'expense') {
     query = query.in('type', ['expense', 'both']);
   }
+
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data ?? [];
 }
 
 export async function createCategory(dto: CreateCategoryDTO): Promise<Category> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('categories')
-    .insert(dto)
+    .insert({ ...dto, user_id: userId })
     .select()
     .single();
 
@@ -42,14 +51,17 @@ export async function createCategory(dto: CreateCategoryDTO): Promise<Category> 
 }
 
 export async function updateCategory(id: string, dto: UpdateCategoryDTO): Promise<Category> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('categories')
     .update(dto)
     .eq('id', id)
+    .eq('user_id', userId)
     .select()
     .single();
 
   if (error) throw new Error(error.message);
+  if (!data) throw new Error('No se puede editar una categoría del sistema o que no te pertenece.');
   return data;
 }
 
@@ -113,17 +125,24 @@ function categoryInUseMessage(usage: CategoryUsage): string {
 }
 
 export async function deleteCategory(id: string): Promise<void> {
+  const userId = await getCurrentUserId();
   const usage = await getCategoryUsage(id);
 
   if (usage.inUse) {
     throw new Error(categoryInUseMessage(usage));
   }
 
-  const { data, error } = await supabase.from('categories').delete().eq('id', id).select('id');
+  const { data, error } = await supabase
+    .from('categories')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('id');
+
   if (error) throw new Error(error.message);
   if (!data?.length) {
     throw new Error(
-      'No se pudo eliminar la categoría. Si es una categoría del sistema, puede estar protegida.'
+      'No se pudo eliminar la categoría. Las categorías del sistema no se pueden borrar.'
     );
   }
 }

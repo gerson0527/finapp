@@ -5,6 +5,7 @@ import {
   assertCanUpdateToExpense,
 } from '@/lib/balanceCheck';
 import { getMainAccount, getAccount } from '@/services/accountService';
+import { adjustMonthlyBalancesAfterTransactionRemoval } from '@/services/monthlyBalanceService';
 
 export interface Transaction {
   id: string;
@@ -239,35 +240,50 @@ export async function createTransfer(dto: CreateTransferDTO): Promise<void> {
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
+  const userId = await getCurrentUserId();
+
   const { data: tx, error: fetchError } = await supabase
     .from('transactions')
-    .select('id, type, amount, account_id')
+    .select('id, type, amount, account_id, date')
     .eq('id', id)
+    .eq('user_id', userId)
     .single();
 
   if (fetchError) throw new Error(fetchError.message);
 
-  const { error: delError } = await supabase
-    .from('transactions')
-    .delete()
-    .eq('id', id);
-
-  if (delError) throw new Error(delError.message);
-
-  const delta = tx.type === 'income' ? -tx.amount : tx.amount;
+  const delta = tx.type === 'income' ? -Number(tx.amount) : Number(tx.amount);
   const { error: acctError } = await supabase.rpc('update_account_balance', {
     account_id: tx.account_id,
     delta,
   });
 
   if (acctError) throw new Error(acctError.message);
+
+  const { error: delError } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
+
+  if (delError) {
+    await supabase.rpc('update_account_balance', {
+      account_id: tx.account_id,
+      delta: -delta,
+    });
+    throw new Error(delError.message);
+  }
+
+  await adjustMonthlyBalancesAfterTransactionRemoval(tx.date, tx.type, Number(tx.amount));
 }
 
 export async function getTransaction(id: string): Promise<Transaction> {
+  const userId = await getCurrentUserId();
+
   const { data, error } = await supabase
     .from('transactions')
     .select('*, category:categories(name, icon, color)')
     .eq('id', id)
+    .eq('user_id', userId)
     .single();
 
   if (error) throw new Error(error.message);
@@ -275,10 +291,13 @@ export async function getTransaction(id: string): Promise<Transaction> {
 }
 
 export async function updateTransaction(id: string, dto: UpdateTransactionDTO): Promise<Transaction> {
+  const userId = await getCurrentUserId();
+
   const { data: old, error: fetchError } = await supabase
     .from('transactions')
     .select('id, type, amount, account_id')
     .eq('id', id)
+    .eq('user_id', userId)
     .single();
 
   if (fetchError) throw new Error(fetchError.message);
@@ -314,6 +333,7 @@ export async function updateTransaction(id: string, dto: UpdateTransactionDTO): 
       note: dto.note,
     })
     .eq('id', id)
+    .eq('user_id', userId)
     .select('*, category:categories(name, icon, color)')
     .single();
 

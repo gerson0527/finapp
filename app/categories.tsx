@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Dimensions,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,7 +78,7 @@ function CategoryRow({
       <View style={[styles.iconWrap, { backgroundColor: category.color || colors.yellow }]}>
         <Ionicons name={category.icon as any} size={22} color={colors.ink} />
       </View>
-      <SText variant="body" style={{ flex: 1, fontWeight: '600' }}>{category.name}</SText>
+      <SText variant="body" style={{ flex: 1, fontWeight: '600', minWidth: 0 }} numberOfLines={1}>{category.name}</SText>
       <View style={[styles.badge, brutalBorder(2), { backgroundColor: badgeBg }]}>
         <SText variant="caption2" style={{ fontWeight: '700' }}>{badgeLabel}</SText>
       </View>
@@ -190,6 +191,13 @@ export default function CategoriesScreen() {
   };
 
   const openEdit = (category: Category) => {
+    if (!category.user_id) {
+      Alert.alert(
+        'Categoría base',
+        'Esta categoría viene con la app y no se puede editar. Crea una propia si necesitas otra.'
+      );
+      return;
+    }
     setEditing(category);
     setForm({
       name: category.name,

@@ -114,8 +114,13 @@ export default function BalanceComparisonView({
         </SText>
 
         <View style={[styles.diffBox, brutalBorder(2)]}>
-          <Ionicons name={cfg.icon} size={22} color={cfg.accent} />
-          <SText variant="title3" style={{ fontWeight: '800', color: cfg.accent }}>
+          <Ionicons name={cfg.icon} size={22} color={cfg.accent} style={{ flexShrink: 0 }} />
+          <SText
+            variant="title3"
+            style={{ fontWeight: '800', color: cfg.accent, flexShrink: 1 }}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
             {diffPrefix}{formatCOP(Math.abs(comparison.difference))}
           </SText>
           {comparison.percentChange !== null && (
@@ -131,17 +136,17 @@ export default function BalanceComparisonView({
             <SText variant="caption1" style={{ fontWeight: '700' }}>
               {formatMonthLabel(comparison.referenceMonth, 'MMM yyyy')}
             </SText>
-            <SText variant="body" style={{ fontWeight: '800', marginTop: 4 }}>
+            <SText variant="body" style={{ fontWeight: '800', marginTop: 4 }} numberOfLines={1} adjustsFontSizeToFit>
               {formatCOP(comparison.referenceBalance)}
             </SText>
           </View>
-          <SText variant="headline" color={colors.textMuted}>vs</SText>
+          <SText variant="headline" color={colors.textMuted} style={{ flexShrink: 0 }}>vs</SText>
           <View style={styles.monthCol}>
             <SText variant="caption2" color={colors.textMuted}>COMPARADO</SText>
             <SText variant="caption1" style={{ fontWeight: '700' }}>
               {formatMonthLabel(comparison.compareMonth, 'MMM yyyy')}
             </SText>
-            <SText variant="body" style={{ fontWeight: '800', marginTop: 4 }}>
+            <SText variant="body" style={{ fontWeight: '800', marginTop: 4 }} numberOfLines={1} adjustsFontSizeToFit>
               {formatCOP(comparison.compareBalance)}
             </SText>
           </View>
@@ -175,6 +180,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     marginBottom: spacing.lg,
+    maxWidth: '100%',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   monthsRow: {
     flexDirection: 'row',
@@ -182,6 +190,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     gap: spacing.sm,
+    minWidth: 0,
   },
-  monthCol: { flex: 1, alignItems: 'center' },
+  monthCol: { flex: 1, alignItems: 'center', minWidth: 0 },
 });

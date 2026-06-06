@@ -38,7 +38,7 @@ export default function PasswordSettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Contraseña' }} />
-      <BrutalScreen showDecor={false}>
+      <BrutalScreen showDecor={false} skipTopInset>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <FadeInView>
             <SText variant="body" color={colors.textSecondary} style={styles.intro}>

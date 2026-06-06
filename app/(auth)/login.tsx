@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, TextInput, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -94,6 +94,11 @@ export default function LoginScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.deco1} />
       <View style={styles.deco2} />
 
@@ -176,12 +181,14 @@ export default function LoginScreen() {
           </AnimatedPressable>
         </BrutalBox>
       </FadeInView>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', paddingHorizontal: 24 },
+  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+  scroll: { flexGrow: 1, justifyContent: 'center' },
   deco1: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: colors.decorative, top: 60, right: -20, borderWidth: 2, borderColor: 'rgba(0,0,0,0.05)' },
   deco2: { position: 'absolute', width: 160, height: 160, borderRadius: 80, backgroundColor: colors.decorative, bottom: 40, left: -60, opacity: 0.6 },
   topSection: { alignItems: 'center', marginBottom: 28 },

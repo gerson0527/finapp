@@ -18,7 +18,6 @@ export default function AddTransactionScreen() {
       <TransactionForm
         title="Nueva transacción"
         submitLabel="Guardar"
-        onCancel={() => router.back()}
         onSubmit={async (dto) => {
           await createTransaction(dto);
           if (dto.type === 'expense') {

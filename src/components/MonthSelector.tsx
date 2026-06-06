@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, Modal, FlatList, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { format, parse } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -11,6 +12,7 @@ import BrutalBox from '@/src/components/BrutalBox';
 import { colors, radii } from '@/src/constants/theme';
 
 export default function MonthSelector() {
+  const insets = useSafeAreaInsets();
   const { selectedMonth, setSelectedMonth } = useApp();
   const [visible, setVisible] = useState(false);
 
@@ -38,7 +40,10 @@ export default function MonthSelector() {
 
       <Modal visible={visible} transparent animationType="fade">
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setVisible(false)}>
-          <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.dropdownWrap}>
+          <Animated.View
+            entering={SlideInDown.springify().damping(20)}
+            style={[styles.dropdownWrap, { marginBottom: Math.max(insets.bottom, 20) }]}
+          >
             <BrutalBox bg={colors.surface} radius={radii.xl} contentStyle={styles.dropdown}>
               <SText variant="headline" style={{ fontWeight: '800', textTransform: 'uppercase', marginBottom: 12 }}>
                 Mes

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useChartWidth } from '@/src/hooks/useChartWidth';
 import Svg, { Path, Circle } from 'react-native-svg';
 import SText from '@/src/components/SText';
 import { formatCOP } from '@/src/utils/currency';
@@ -23,7 +24,8 @@ function describeArc(cx: number, cy: number, r: number, startAngle: number, endA
   return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
 }
 
-export default function CategoryPieChart({ data, size = 160 }: CategoryPieChartProps) {
+export default function CategoryPieChart({ data, size: sizeProp = 160 }: CategoryPieChartProps) {
+  const size = Math.min(sizeProp, useChartWidth() - 16);
   const total = data.reduce((s, d) => s + d.total, 0);
   const cx = size / 2;
   const cy = size / 2;

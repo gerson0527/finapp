@@ -68,6 +68,9 @@ function BalanceHero({
         <SText
           variant="title1"
           style={[styles.heroAmount, (isEmpty || isLow) && { color: colors.expense }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.55}
         >
           {formatCOP(value)}
         </SText>
@@ -101,7 +104,7 @@ function StatTile({
       {loading ? (
         <SkeletonLoader variant="text" />
       ) : (
-        <SText variant="headline" color={fg} style={{ fontWeight: '800', marginTop: 4 }}>
+        <SText variant="headline" color={fg} style={{ fontWeight: '800', marginTop: 4 }} numberOfLines={1} adjustsFontSizeToFit>
           {value}
         </SText>
       )}
@@ -417,7 +420,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   heroLabel: { letterSpacing: 1, marginBottom: spacing.sm },
-  heroAmount: { fontWeight: '800', fontSize: 36, textAlign: 'center' },
+  heroAmount: { fontWeight: '800', fontSize: 36, textAlign: 'center', width: '100%' },
   flowPill: {
     flexDirection: 'row',
     alignItems: 'center',

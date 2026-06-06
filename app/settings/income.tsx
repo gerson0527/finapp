@@ -55,7 +55,7 @@ export default function IncomeSettingsScreen() {
   return (
     <>
       <Stack.Screen options={{ title: 'Ingreso mensual' }} />
-      <BrutalScreen showDecor={false}>
+      <BrutalScreen showDecor={false} skipTopInset>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <FadeInView>
             <SText variant="body" color={colors.textSecondary} style={styles.intro}>

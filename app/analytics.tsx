@@ -39,7 +39,7 @@ export default function AnalyticsScreen() {
       : `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% vs mes anterior`;
 
   return (
-    <BrutalScreen>
+    <BrutalScreen skipTopInset>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <HighlightText variant="title2">Analytics</HighlightText>
           <SText variant="footnote" color={colors.textMuted} style={{ marginTop: 6, marginBottom: spacing.lg }}>
@@ -58,9 +58,9 @@ export default function AnalyticsScreen() {
                     color={colors.ink}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <SText variant="caption2" color={colors.textMuted}>Gastos este mes</SText>
-                  <SText variant="title3" style={{ fontWeight: '900' }}>
+                  <SText variant="title3" style={{ fontWeight: '900' }} numberOfLines={1} adjustsFontSizeToFit>
                     {formatCOP(data.currentMonthTotal)}
                   </SText>
                   <SText

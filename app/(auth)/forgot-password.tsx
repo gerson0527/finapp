@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,7 +58,12 @@ export default function ForgotPasswordScreen() {
       style={[styles.container, { paddingTop: insets.top }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <AnimatedPressable onPress={() => router.back()} style={styles.backBtn}>
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+      <AnimatedPressable onPress={() => router.back()} style={[styles.backBtn, { top: insets.top + 8 }]}>
         <Ionicons name="arrow-back" size={22} color={colors.ink} />
         <SText variant="callout" style={{ fontWeight: '700' }}>Volver</SText>
       </AnimatedPressable>
@@ -106,6 +112,7 @@ export default function ForgotPasswordScreen() {
           )}
         </BrutalBox>
       </FadeInView>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -115,11 +122,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
     paddingHorizontal: spacing.xl,
-    justifyContent: 'center',
   },
+  scroll: { flexGrow: 1, justifyContent: 'center', paddingTop: 48 },
   backBtn: {
     position: 'absolute',
-    top: 56,
     left: spacing.xl,
     flexDirection: 'row',
     alignItems: 'center',

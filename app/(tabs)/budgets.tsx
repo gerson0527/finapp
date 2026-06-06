@@ -15,7 +15,7 @@ import Animated, { SlideInDown } from 'react-native-reanimated';
 import { format } from 'date-fns';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useApp } from '@/src/context/AppContext';
-import { createBudget, BudgetWithSpent, updateBudgetLimits } from '@/services/budgetService';
+import { createBudget, deleteBudget, updateBudget, BudgetWithSpent, updateBudgetLimits } from '@/services/budgetService';
 import { getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
 import { markBudgetMonthReviewed } from '@/lib/budgetReviewStorage';
 import BudgetMonthReviewModal from '@/src/components/BudgetMonthReviewModal';
@@ -39,6 +39,7 @@ import ProgressBar from '@/src/components/ProgressBar';
 import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 import BalanceExceededAlert from '@/src/components/BalanceExceededAlert';
 import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function SummaryStat({
   label,
@@ -75,6 +76,7 @@ function SummaryStat({
 }
 
 export default function BudgetsScreen() {
+  const insets = useSafeAreaInsets();
   const { selectedMonth, triggerRefresh, refreshKey } = useApp();
   const budgets = useBudgets(selectedMonth);
 
@@ -85,6 +87,7 @@ export default function BudgetsScreen() {
   );
 
   const [showModal, setShowModal] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<BudgetWithSpent | null>(null);
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState('');
   const [newLimit, setNewLimit] = useState('');
@@ -103,6 +106,10 @@ export default function BudgetsScreen() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [showExceededAlert, setShowExceededAlert] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<BudgetWithSpent | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const monthLabel = formatMonthLabel(selectedMonth);
   const currentMonth = getCurrentMonth();
@@ -242,15 +249,64 @@ export default function BudgetsScreen() {
     return { totalLimit, totalSpent, remaining, exceeded, health };
   }, [budgets.data]);
 
-  const openModal = async () => {
+  const openModal = async (budget?: BudgetWithSpent) => {
     setSaveError(null);
     try {
       setCategories(await getCategories());
     } catch {
       // modal igual se abre; categorías pueden estar vacías
     }
+
+    if (budget) {
+      setEditingBudget(budget);
+      setNewTitle(budget.title);
+      setNewCategory(budget.category_id);
+      setNewLimit(String(Math.round(Number(budget.limit_amount))));
+    } else {
+      setEditingBudget(null);
+      setNewTitle('');
+      setNewCategory('');
+      setNewLimit('');
+    }
+
     setShowModal(true);
   };
+
+  const closeBudgetModal = () => {
+    setShowModal(false);
+    setEditingBudget(null);
+    setNewTitle('');
+    setNewCategory('');
+    setNewLimit('');
+    setSaveError(null);
+  };
+
+  function openDeleteConfirm(budget: BudgetWithSpent) {
+    setDeleteError(null);
+    setDeleteTarget(budget);
+  }
+
+  function closeDeleteConfirm() {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteError(null);
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteBudget(deleteTarget.id);
+      budgets.refresh();
+      triggerRefresh();
+      setDeleteTarget(null);
+    } catch (e: unknown) {
+      setDeleteError(e instanceof Error ? e.message : 'No se pudo eliminar.');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const handleSave = async () => {
     const limit = copDigitsToNumber(newLimit);
@@ -262,21 +318,25 @@ export default function BudgetsScreen() {
     setSaving(true);
     setSaveError(null);
     try {
-      await createBudget({
-        title,
-        category_id: newCategory,
-        limit_amount: limit,
-        month: selectedMonth,
-      });
+      if (editingBudget) {
+        await updateBudget(editingBudget.id, {
+          title,
+          category_id: newCategory,
+          limit_amount: limit,
+        });
+      } else {
+        await createBudget({
+          title,
+          category_id: newCategory,
+          month: selectedMonth,
+          limit_amount: limit,
+        });
+      }
       budgets.refresh();
       triggerRefresh();
-      setShowModal(false);
-      setNewTitle('');
-      setNewCategory('');
-      setNewLimit('');
-      setSaveError(null);
+      closeBudgetModal();
     } catch (e: any) {
-      setSaveError(e.message || 'No se pudo crear el presupuesto.');
+      setSaveError(e.message || 'No se pudo guardar el presupuesto.');
     } finally {
       setSaving(false);
     }
@@ -340,7 +400,7 @@ export default function BudgetsScreen() {
               ))}
             </BrutalBox>
 
-            <AnimatedPressable onPress={openModal} style={{ marginTop: spacing.md }}>
+            <AnimatedPressable onPress={() => openModal()} style={{ marginTop: spacing.md }}>
               <BrutalBox bg={colors.pink} radius={radii.pill} shadow={4} contentStyle={styles.emptyCta}>
                 <Ionicons name="add-circle" size={22} color={colors.ink} />
                 <SText variant="callout" style={{ fontWeight: '800' }}>Crear mi primer presupuesto</SText>
@@ -407,11 +467,18 @@ export default function BudgetsScreen() {
             </FadeInView>
 
             {budgets.data.map((b, i) => (
-              <BudgetCard key={b.id} budget={b} index={i + 4} onPay={() => openPay(b)} />
+              <BudgetCard
+                key={b.id}
+                budget={b}
+                index={i + 4}
+                onPay={() => openPay(b)}
+                onEdit={() => openModal(b)}
+                onDelete={() => openDeleteConfirm(b)}
+              />
             ))}
 
             <FadeInView index={budgets.data.length + 5}>
-              <AnimatedPressable onPress={openModal}>
+              <AnimatedPressable onPress={() => openModal()}>
                 <BrutalBox bg={colors.surfaceAlt} radius={radii.lg} shadow={3} contentStyle={styles.addMoreCard}>
                   <View style={[styles.addMoreIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
                     <Ionicons name="add" size={22} color={colors.ink} />
@@ -432,7 +499,10 @@ export default function BudgetsScreen() {
 
       <Modal visible={showModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.modalWrap}>
+          <Animated.View
+            entering={SlideInDown.springify().damping(20)}
+            style={[styles.modalWrap, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+          >
             <BrutalBox contentStyle={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <View style={[styles.modalIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
@@ -440,7 +510,7 @@ export default function BudgetsScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <SText variant="title3" style={{ fontWeight: '800', textTransform: 'uppercase' }}>
-                    Nuevo presupuesto
+                    {editingBudget ? 'Editar presupuesto' : 'Nuevo presupuesto'}
                   </SText>
                   <SText variant="caption2" color={colors.textMuted}>{monthLabel}</SText>
                 </View>
@@ -506,11 +576,17 @@ export default function BudgetsScreen() {
               </View>
 
               <BrutalButton
-                label={saving ? 'Guardando...' : 'Crear presupuesto'}
+                label={
+                  saving
+                    ? 'Guardando...'
+                    : editingBudget
+                      ? 'Guardar cambios'
+                      : 'Crear presupuesto'
+                }
                 onPress={handleSave}
                 disabled={!newTitle.trim() || !newCategory || !newLimit || saving}
               />
-              <AnimatedPressable onPress={() => setShowModal(false)} style={styles.modalCancel}>
+              <AnimatedPressable onPress={closeBudgetModal} style={styles.modalCancel}>
                 <SText variant="footnote" style={{ fontWeight: '700' }}>Cancelar</SText>
               </AnimatedPressable>
             </BrutalBox>
@@ -524,7 +600,10 @@ export default function BudgetsScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.modalKeyboard}
           >
-            <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.modalWrap}>
+            <Animated.View
+            entering={SlideInDown.springify().damping(20)}
+            style={[styles.modalWrap, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+          >
               <BrutalBox shadow={5} contentStyle={[styles.modalContent, styles.payModalContent]}>
                 <View style={[styles.payModalAccent, brutalBorder(2)]} />
                 <View style={styles.payModalHeader}>
@@ -671,6 +750,49 @@ export default function BudgetsScreen() {
         onConfirm={handleReviewConfirm}
         onDismiss={handleReviewDismiss}
       />
+
+      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={closeDeleteConfirm}>
+        <View style={styles.modalOverlay}>
+          <Animated.View
+            entering={SlideInDown.springify().damping(20)}
+            style={[styles.modalWrap, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
+          >
+            <BrutalBox bg={colors.expenseBg} shadow={5} contentStyle={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <View style={[styles.modalIcon, brutalBorder(), { backgroundColor: colors.surface }]}>
+                  <Ionicons name="trash-outline" size={22} color={colors.expense} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <SText variant="title3" style={{ fontWeight: '800', textTransform: 'uppercase' }}>
+                    Eliminar presupuesto
+                  </SText>
+                  <SText variant="caption2" color={colors.textMuted} numberOfLines={1}>
+                    {deleteTarget?.title}
+                  </SText>
+                </View>
+              </View>
+
+              {deleteError ? (
+                <AuthFeedback type="error" title="Error" message={deleteError} />
+              ) : null}
+
+              <SText variant="body" color={colors.textSecondary} style={{ lineHeight: 22, marginBottom: spacing.lg }}>
+                ¿Eliminar "{deleteTarget?.title}"? Los gastos ya registrados no se borran.
+              </SText>
+
+              <BrutalButton
+                label={deleting ? 'Eliminando...' : 'Sí, eliminar'}
+                variant="pink"
+                onPress={handleDeleteConfirm}
+                disabled={deleting}
+              />
+              <AnimatedPressable onPress={closeDeleteConfirm} style={styles.modalCancel} disabled={deleting}>
+                <SText variant="footnote" style={{ fontWeight: '700' }}>Cancelar</SText>
+              </AnimatedPressable>
+            </BrutalBox>
+          </Animated.View>
+        </View>
+      </Modal>
 
       <BalanceExceededAlert
         visible={showExceededAlert}
@@ -827,9 +949,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   categoryChip: {
-    width: '30%',
-    minWidth: 96,
-    flexGrow: 1,
+    width: '31%',
     alignItems: 'center',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,

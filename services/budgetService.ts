@@ -22,6 +22,12 @@ export interface CreateBudgetDTO {
   limit_amount: number;
 }
 
+export interface UpdateBudgetDTO {
+  title?: string;
+  category_id?: string;
+  limit_amount?: number;
+}
+
 type BudgetRow = {
   id: string;
   title: string;
@@ -117,15 +123,52 @@ export async function createBudget(dto: CreateBudgetDTO) {
   return row;
 }
 
-export async function updateBudget(id: string, limit_amount: number): Promise<BudgetRow> {
+export async function updateBudget(id: string, dto: UpdateBudgetDTO): Promise<BudgetRow> {
+  const userId = await getCurrentUserId();
+
+  const { data: existing, error: fetchError } = await supabase
+    .from('budgets')
+    .select('id, title, category_id, month, limit_amount, user_id')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(fetchError.message);
+  if (!existing) throw new Error('Presupuesto no encontrado.');
+
+  const title = dto.title !== undefined ? dto.title.trim() : existing.title;
+  if (!title) {
+    throw new Error('Escribe un nombre para el presupuesto (ej. Netflix, Spotify).');
+  }
+
+  if (title !== existing.title) {
+    const duplicateId = await findBudgetByTitle(userId, existing.month, title);
+    if (duplicateId && duplicateId !== id) {
+      throw new Error(`Ya tienes un presupuesto llamado "${title}" este mes. Usa otro nombre.`);
+    }
+  }
+
+  const payload: UpdateBudgetDTO = {};
+  if (dto.title !== undefined) payload.title = title;
+  if (dto.category_id !== undefined) payload.category_id = dto.category_id;
+  if (dto.limit_amount !== undefined) payload.limit_amount = dto.limit_amount;
+
+  if (Object.keys(payload).length === 0) return existing;
+
   const { data, error } = await supabase
     .from('budgets')
-    .update({ limit_amount })
+    .update(payload)
     .eq('id', id)
+    .eq('user_id', userId)
     .select('id, title, category_id, month, limit_amount, user_id')
     .limit(1);
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (error.code === '23505') {
+      throw new Error(`Ya tienes un presupuesto llamado "${title}" este mes. Usa otro nombre.`);
+    }
+    throw new Error(error.message);
+  }
 
   const row = data?.[0];
   if (!row) throw new Error('Presupuesto no encontrado.');
@@ -133,8 +176,16 @@ export async function updateBudget(id: string, limit_amount: number): Promise<Bu
 }
 
 export async function deleteBudget(id: string): Promise<void> {
-  const { error } = await supabase.from('budgets').delete().eq('id', id);
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase
+    .from('budgets')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('id');
+
   if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error('Presupuesto no encontrado.');
 }
 
 /** Copia presupuestos del mes anterior al mes actual (gasto empieza en 0). */
@@ -175,5 +226,5 @@ export async function rolloverBudgetsToMonth(
 export async function updateBudgetLimits(
   updates: { id: string; limit_amount: number }[]
 ): Promise<void> {
-  await Promise.all(updates.map((u) => updateBudget(u.id, u.limit_amount)));
+  await Promise.all(updates.map((u) => updateBudget(u.id, { limit_amount: u.limit_amount })));
 }

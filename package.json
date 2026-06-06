@@ -37,6 +37,7 @@
     "@types/react": "~19.2.2",
     "eas-cli": "^20.0.0",
     "pg": "^8.21.0",
+    "sharp": "^0.34.5",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -47,7 +48,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:web": "expo export -p web",
+    "build:web": "node scripts/generate-pwa-assets.mjs && expo export -p web",
+    "generate:pwa": "node scripts/generate-pwa-assets.mjs",
     "db:migrate": "node scripts/migrate.mjs",
     "db:migrate:baseline": "node scripts/migrate-baseline.mjs",
     "db:clear": "node scripts/clear-db.mjs",
@@ -55,6 +57,9 @@
     "db:migrate-monthly": "node scripts/migrate-monthly.mjs",
     "db:migrate-categories": "node scripts/migrate-categories.mjs",
     "db:migrate-budgets-multiple": "node scripts/migrate-budgets-multiple.mjs",
+  "db:seed": "node scripts/seed-demo.mjs",
+  "db:seed:fresh": "node scripts/seed-demo.mjs --fresh",
+  "db:fix-auth": "node scripts/fix-auth-users.mjs",
     "build:ios": "eas build --profile development --platform ios",
     "build:android": "eas build --profile development --platform android",
     "go:ios": "eas go",

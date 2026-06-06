@@ -24,7 +24,18 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "FinApp - Finanzas Personales",
+      "shortName": "FinApp",
+      "themeColor": "#AAFF00",
+      "backgroundColor": "#0D0D0D",
+      "display": "standalone",
+      "orientation": "portrait",
+      "barStyle": "black-translucent",
+      "lang": "es",
+      "description": "Controla tus gastos, presupuestos y metas de ahorro.",
+      "startUrl": "/",
+      "scope": "/"
     },
     "plugins": [
       "expo-dev-client",

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, Alert, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, Platform, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withSequence } from 'react-native-reanimated';
 import { format, isToday, parseISO } from 'date-fns';
 import { getCategories, Category } from '@/services/categoryService';
@@ -11,7 +12,10 @@ import {
   expenseExceedsBalance,
   expenseUpdateExceedsBalance,
 } from '@/lib/balanceCheck';
+import { showAlert } from '@/lib/platformAlert';
 import BalanceExceededAlert from '@/src/components/BalanceExceededAlert';
+import ConfirmModal from '@/src/components/ConfirmModal';
+import AuthFeedback, { AuthFeedbackType } from '@/src/components/AuthFeedback';
 import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
@@ -40,7 +44,6 @@ interface TransactionFormProps {
   onSubmit: (dto: CreateTransactionDTO) => Promise<void>;
   onTransfer?: (dto: CreateTransferDTO) => Promise<void>;
   onDelete?: () => Promise<void>;
-  onCancel: () => void;
 }
 
 export default function TransactionForm({
@@ -50,8 +53,9 @@ export default function TransactionForm({
   onSubmit,
   onTransfer,
   onDelete,
-  onCancel,
 }: TransactionFormProps) {
+  const { width: screenWidth } = useWindowDimensions();
+  const compact = screenWidth < 360;
   const tx = initial?.transaction;
   const [type, setType] = useState<'expense' | 'income' | 'transfer'>(
     (initial?.type ?? (tx?.type === 'transfer' ? 'expense' : tx?.type) ?? 'expense') as 'expense' | 'income' | 'transfer'
@@ -75,6 +79,13 @@ export default function TransactionForm({
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [formFeedback, setFormFeedback] = useState<{
+    type: AuthFeedbackType;
+    title?: string;
+    message: string;
+  } | null>(null);
   const [accountBalance, setAccountBalance] = useState<number | null>(null);
   const [showExceededAlert, setShowExceededAlert] = useState(false);
   const [exceededAttempt, setExceededAttempt] = useState(0);
@@ -83,16 +94,39 @@ export default function TransactionForm({
 
   useFocusEffect(
     useCallback(() => {
-      getCategories().then(setCategories).catch(() => {});
+      setFormFeedback(null);
+      getCategories()
+        .then(setCategories)
+        .catch(() => {
+          setFormFeedback({
+            type: 'error',
+            title: 'Categorías',
+            message: 'No se pudieron cargar las categorías. Revisa tu conexión.',
+          });
+        });
       getAccounts()
         .then((list) => {
           setAccounts(list);
+          if (list.length === 0) {
+            setFormFeedback({
+              type: 'error',
+              title: 'Sin cuenta',
+              message: 'Crea una cuenta en Más → Cuentas antes de registrar movimientos.',
+            });
+            return;
+          }
           if (!accountId && list[0]) setAccountId(list[0].id);
           if (!fromAccountId && list[0]) setFromAccountId(list[0].id);
           if (!toAccountId && list[1]) setToAccountId(list[1].id);
           else if (!toAccountId && list[0]) setToAccountId(list[0].id);
         })
-        .catch(() => {});
+        .catch(() => {
+          setFormFeedback({
+            type: 'error',
+            title: 'Cuentas',
+            message: 'No se pudieron cargar tus cuentas.',
+          });
+        });
     }, [accountId, fromAccountId, toAccountId])
   );
 
@@ -135,13 +169,30 @@ export default function TransactionForm({
       : expenseExceedsBalance(numAmount, accountBalance));
 
   async function handleSave() {
-    if (!numAmount || numAmount <= 0) { Alert.alert('Error', 'Ingresa un monto válido'); return; }
-    if (!selectedCategoryId) { Alert.alert('Error', 'Selecciona una categoría'); return; }
+    setFormFeedback(null);
+
+    if (!numAmount || numAmount <= 0) {
+      setFormFeedback({ type: 'error', title: 'Monto inválido', message: 'Ingresa un monto mayor a 0.' });
+      return;
+    }
+    if (!selectedCategoryId) {
+      setFormFeedback({ type: 'error', title: 'Categoría', message: 'Selecciona una categoría.' });
+      return;
+    }
 
     if (type === 'transfer') {
-      if (!onTransfer) { Alert.alert('Error', 'Transferencias no disponibles'); return; }
-      if (!fromAccountId || !toAccountId) { Alert.alert('Error', 'Selecciona cuentas origen y destino'); return; }
-      if (fromAccountId === toAccountId) { Alert.alert('Error', 'Las cuentas deben ser diferentes'); return; }
+      if (!onTransfer) {
+        setFormFeedback({ type: 'error', message: 'Transferencias no disponibles.' });
+        return;
+      }
+      if (!fromAccountId || !toAccountId) {
+        setFormFeedback({ type: 'error', message: 'Selecciona cuentas origen y destino.' });
+        return;
+      }
+      if (fromAccountId === toAccountId) {
+        setFormFeedback({ type: 'error', message: 'Las cuentas deben ser diferentes.' });
+        return;
+      }
       const fromAcct = accounts.find((a) => a.id === fromAccountId);
       if (fromAcct && numAmount > Number(fromAcct.balance)) {
         setExceededAttempt(numAmount);
@@ -164,14 +215,23 @@ export default function TransactionForm({
           note: note.trim() || undefined,
         });
       } catch (e: unknown) {
-        Alert.alert('Error', e instanceof Error ? e.message : 'No se pudo transferir');
+        const message = e instanceof Error ? e.message : 'No se pudo transferir';
+        setFormFeedback({ type: 'error', title: 'Error', message });
+        showAlert('Error', message);
       } finally {
         setSaving(false);
       }
       return;
     }
 
-    if (!accountId) { Alert.alert('Error', 'No hay cuenta disponible'); return; }
+    if (!accountId) {
+      setFormFeedback({
+        type: 'error',
+        title: 'Sin cuenta',
+        message: 'No hay cuenta disponible. Crea una en Más → Cuentas.',
+      });
+      return;
+    }
 
     if (type === 'expense' && accountBalance !== null && exceedsBalance) {
       setExceededAttempt(numAmount);
@@ -212,67 +272,84 @@ export default function TransactionForm({
         setExceededAttempt(numAmount);
         setShowExceededAlert(true);
       } else {
-        Alert.alert('Error', message);
+        setFormFeedback({ type: 'error', title: 'No se pudo guardar', message });
+        showAlert('Error', message);
       }
     } finally {
       setSaving(false);
     }
   }
 
-  function handleDelete() {
+  function handleDeletePress() {
     if (!onDelete) return;
-    const selectedCategory = categories.find((c) => c.id === selectedCategoryId);
-    const label = selectedCategory?.name ?? tx?.description ?? 'esta transacción';
-    Alert.alert('Eliminar transacción', `¿Eliminar "${label}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          setDeleting(true);
-          try {
-            await onDelete();
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'No se pudo eliminar');
-          } finally {
-            setDeleting(false);
-          }
-        },
-      },
-    ]);
+    setDeleteError(null);
+    setDeleteConfirmVisible(true);
+  }
+
+  async function handleDeleteConfirm() {
+    if (!onDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDelete();
+      setDeleteConfirmVisible(false);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'No se pudo eliminar';
+      setDeleteError(message);
+      showAlert('Error', message);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
     <>
-      <View style={styles.header}>
-        <AnimatedPressable onPress={onCancel}>
-          <SText variant="callout" style={{ fontWeight: '700' }}>✕ Cancelar</SText>
-        </AnimatedPressable>
-        {onDelete && (
-          <AnimatedPressable onPress={handleDelete} disabled={deleting}>
-            <SText variant="callout" color={colors.error} style={{ fontWeight: '700' }}>
+      {onDelete ? (
+        <View style={styles.actionBar}>
+          <AnimatedPressable
+            onPress={handleDeletePress}
+            disabled={deleting}
+            style={[styles.deleteBtn, brutalBorder(2), deleting && styles.deleteBtnDisabled]}
+          >
+            <Ionicons name="trash-outline" size={16} color={colors.expense} />
+            <SText variant="caption2" color={colors.expense} style={{ fontWeight: '800' }}>
               {deleting ? 'Eliminando...' : 'Eliminar'}
             </SText>
           </AnimatedPressable>
-        )}
-      </View>
+        </View>
+      ) : null}
+
+      {formFeedback ? (
+        <View style={{ paddingHorizontal: spacing.xl, marginBottom: spacing.sm }}>
+          <AuthFeedback
+            type={formFeedback.type}
+            title={formFeedback.title}
+            message={formFeedback.message}
+          />
+        </View>
+      ) : null}
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <HighlightText variant="title2">{title}</HighlightText>
+        {!tx ? <HighlightText variant="title2">{title}</HighlightText> : null}
 
         <FadeInView index={1}>
-          <View style={styles.toggleRow}>
+          <View style={[styles.toggleRow, compact && { gap: 6 }, tx && { marginTop: spacing.md }]}>
             {(['expense', 'income', 'transfer'] as const).map((t) => (
               <AnimatedPressable
                 key={t}
                 style={[
                   styles.toggleBtn,
                   styles.toggleBtnThird,
+                  compact && styles.toggleBtnCompact,
                   type === t && (t === 'expense' ? styles.toggleExpense : t === 'income' ? styles.toggleIncome : styles.toggleTransfer),
                 ]}
                 onPress={() => !tx && setType(t)}
               >
-                <SText variant="caption1" style={{ fontWeight: '700', textTransform: 'uppercase' }}>
+                <SText
+                  variant="caption1"
+                  style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: compact ? 10 : undefined }}
+                  numberOfLines={1}
+                >
                   {t === 'expense' ? 'Gasto' : t === 'income' ? 'Ingreso' : 'Transfer.'}
                 </SText>
               </AnimatedPressable>
@@ -281,12 +358,12 @@ export default function TransactionForm({
         </FadeInView>
 
         <FadeInView index={2}>
-          <BrutalBox bg={colors.yellow} contentStyle={styles.amountCard}>
+          <BrutalBox bg={colors.yellow} contentStyle={[styles.amountCard, compact && styles.amountCardCompact]}>
             <Animated.View style={[amountAnim, styles.amountInputWrap]}>
               <SText variant="title1" color={colors.ink} style={styles.amountPrefix}>$</SText>
               <TextInput
                 ref={amountRef}
-                style={styles.amountInput}
+                style={[styles.amountInput, compact && { fontSize: 32 }]}
                 value={formatCOPDigits(amount)}
                 onChangeText={(t) => setAmount(parseCOPDigits(t))}
                 keyboardType={Platform.OS === 'web' ? 'numeric' : 'number-pad'}
@@ -436,18 +513,45 @@ export default function TransactionForm({
         amount={exceededAttempt}
         onDismiss={() => setShowExceededAlert(false)}
       />
+
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title="Eliminar movimiento"
+        message="¿Eliminar esta transacción? Se revertirá el efecto en tu balance."
+        confirmLabel="Eliminar"
+        variant="danger"
+        loading={deleting}
+        error={deleteError}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteConfirmVisible(false);
+            setDeleteError(null);
+          }
+        }}
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
+  actionBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radii.pill,
+    backgroundColor: colors.expenseBg,
+  },
+  deleteBtnDisabled: { opacity: 0.6 },
   scrollContent: { paddingHorizontal: spacing.xl },
   toggleRow: { flexDirection: 'row', gap: 10, marginVertical: spacing.xl },
   toggleBtn: {
@@ -460,6 +564,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   toggleBtnThird: { paddingVertical: 12 },
+  toggleBtnCompact: { paddingVertical: 10, paddingHorizontal: 4 },
   toggleExpense: { backgroundColor: colors.expenseBg },
   toggleIncome: { backgroundColor: colors.incomeBg },
   toggleTransfer: { backgroundColor: colors.surfaceAlt },
@@ -504,6 +609,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  amountCardCompact: { padding: spacing.lg },
   amountInputWrap: {
     flexDirection: 'row',
     alignItems: 'center',

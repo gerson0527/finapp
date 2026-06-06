@@ -37,7 +37,7 @@ export default function EditTransactionScreen() {
     <>
       <Stack.Screen
         options={{
-          headerShown: !readOnly,
+          headerShown: true,
           headerTitle: readOnly ? 'Detalle' : 'Editar transacción',
           headerStyle: { backgroundColor: colors.bg },
           headerTintColor: colors.ink,
@@ -68,7 +68,6 @@ export default function EditTransactionScreen() {
             title="Editar transacción"
             submitLabel="Guardar cambios"
             initial={{ transaction }}
-            onCancel={() => router.back()}
             onSubmit={async (dto) => {
               await updateTransaction(transaction.id, dto);
               triggerRefresh();
