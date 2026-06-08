@@ -9,12 +9,43 @@ import { useApp } from '@/src/context/AppContext';
 import SText from '@/src/components/SText';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import BrutalBox from '@/src/components/BrutalBox';
-import { colors, radii } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii } from '@/src/constants/theme';
 
 export default function MonthSelector() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { selectedMonth, setSelectedMonth } = useApp();
   const [visible, setVisible] = useState(false);
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      selector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        gap: 6,
+      },
+      overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 20 },
+      dropdownWrap: { marginBottom: 20 },
+      dropdown: { padding: 20, maxHeight: 400 },
+      item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
+      selectedItem: { backgroundColor: colors.pinkLight, marginHorizontal: -12, paddingHorizontal: 12, borderRadius: radii.sm },
+      radio: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 3,
+        borderColor: colors.ink,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      radioActive: { backgroundColor: colors.pink },
+      radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.ink },
+    })
+  );
 
   const months: { value: string; label: string }[] = [];
   const now = new Date();
@@ -73,29 +104,3 @@ export default function MonthSelector() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  selector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 6,
-  },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 20 },
-  dropdownWrap: { marginBottom: 20 },
-  dropdown: { padding: 20, maxHeight: 400 },
-  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, gap: 12 },
-  selectedItem: { backgroundColor: colors.pinkLight, marginHorizontal: -12, paddingHorizontal: 12, borderRadius: radii.sm },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 3,
-    borderColor: colors.ink,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  radioActive: { backgroundColor: colors.pink },
-  radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.ink },
-});

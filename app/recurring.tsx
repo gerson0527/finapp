@@ -18,9 +18,42 @@ import SkeletonLoader from '@/src/components/SkeletonLoader';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import FadeInView from '@/src/components/FadeInView';
 import { formatCOP } from '@/src/utils/currency';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 
 export default function RecurringScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    content: { padding: spacing.xl, paddingBottom: 120 },
+    empty: { padding: spacing.xl, alignItems: 'center' },
+    card: { padding: spacing.lg, marginBottom: spacing.md },
+    cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+    catDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: colors.ink },
+    metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+    metaChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+    },
+    actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    toggleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    actionBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.sm,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+  })
+    );
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<RecurringTemplate[]>([]);
@@ -126,13 +159,13 @@ export default function RecurringScreen() {
                   </View>
 
                   <View style={styles.metaRow}>
-                    <View style={[styles.metaChip, brutalBorder()]}>
+                    <View style={[styles.metaChip, brutalBorder(undefined, colors)]}>
                       <Ionicons name="calendar-outline" size={14} color={colors.ink} />
                       <SText variant="caption2" style={{ fontWeight: '700' }}>
                         Día {item.recurrence_day ?? 1}
                       </SText>
                     </View>
-                    <View style={[styles.metaChip, brutalBorder()]}>
+                    <View style={[styles.metaChip, brutalBorder(undefined, colors)]}>
                       <Ionicons name="arrow-forward-circle-outline" size={14} color={colors.ink} />
                       <SText variant="caption2" style={{ fontWeight: '700' }}>
                         Próximo: {getNextRecurrenceLabel(item.recurrence_day)}
@@ -151,13 +184,13 @@ export default function RecurringScreen() {
                       />
                     </View>
                     <AnimatedPressable
-                      style={[styles.actionBtn, brutalBorder()]}
+                      style={[styles.actionBtn, brutalBorder(undefined, colors)]}
                       onPress={() => router.push(`/transaction/${item.id}` as any)}
                     >
                       <Ionicons name="create-outline" size={16} color={colors.ink} />
                     </AnimatedPressable>
                     <AnimatedPressable
-                      style={[styles.actionBtn, brutalBorder(), { backgroundColor: colors.expenseBg }]}
+                      style={[styles.actionBtn, brutalBorder(undefined, colors), { backgroundColor: colors.expenseBg }]}
                       onPress={() => confirmDelete(item)}
                     >
                       <Ionicons name="trash-outline" size={16} color={colors.ink} />
@@ -173,30 +206,3 @@ export default function RecurringScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: { padding: spacing.xl, paddingBottom: 120 },
-  empty: { padding: spacing.xl, alignItems: 'center' },
-  card: { padding: spacing.lg, marginBottom: spacing.md },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
-  catDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: colors.ink },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
-  metaChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-  },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  toggleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  actionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});

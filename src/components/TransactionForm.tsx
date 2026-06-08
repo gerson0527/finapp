@@ -25,7 +25,9 @@ import BrutalButton from '@/src/components/BrutalButton';
 import HighlightText from '@/src/components/HighlightText';
 import CategoryChip from '@/src/components/CategoryChip';
 import DatePickerField from '@/src/components/DatePickerField';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder, webTextInputReset } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 
 export interface TransactionFormValues {
   type: 'expense' | 'income' | 'transfer';
@@ -54,6 +56,133 @@ export default function TransactionForm({
   onTransfer,
   onDelete,
 }: TransactionFormProps) {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    actionBar: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    deleteBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: radii.pill,
+      backgroundColor: colors.expenseBg,
+    },
+    deleteBtnDisabled: { opacity: 0.6 },
+    scrollContent: { paddingHorizontal: spacing.xl },
+    toggleRow: { flexDirection: 'row', gap: 10, marginVertical: spacing.xl },
+    toggleBtn: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      borderWidth: 3,
+      borderColor: colors.ink,
+      backgroundColor: colors.surface,
+    },
+    toggleBtnThird: { paddingVertical: 12 },
+    toggleBtnCompact: { paddingVertical: 10, paddingHorizontal: 4 },
+    toggleExpense: { backgroundColor: colors.expenseBg },
+    toggleIncome: { backgroundColor: colors.incomeBg },
+    toggleTransfer: { backgroundColor: colors.surfaceAlt },
+    accountRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.lg },
+    accountChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+      maxWidth: '48%',
+    },
+    accountChipActive: { backgroundColor: colors.yellow },
+    recurringToggle: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.surface,
+      marginBottom: spacing.sm,
+    },
+    recurringActive: { backgroundColor: colors.pink },
+    dayRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.surfaceAlt,
+      marginBottom: spacing.lg,
+    },
+    dayInput: {
+      width: 48,
+      textAlign: 'center',
+      fontWeight: '800',
+      fontSize: 18,
+      color: colors.ink,
+    },
+    amountCard: {
+      padding: spacing.xxl,
+      marginBottom: spacing.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    amountCardCompact: { padding: spacing.lg },
+    amountInputWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '100%',
+    },
+    amountPrefix: { fontWeight: '700', marginRight: 2 },
+    amountInput: {
+      fontSize: 40,
+      fontWeight: '700',
+      color: colors.ink,
+      minWidth: 60,
+      paddingVertical: 4,
+      textAlign: 'center',
+      ...webTextInputReset,
+      ...(Platform.OS === 'web' ? { minWidth: 100 } : {}),
+    },
+    amountHint: {
+      marginTop: 8,
+      textAlign: 'center',
+      width: '100%',
+    },
+    balanceHint: {
+      marginTop: spacing.sm,
+      textAlign: 'center',
+    },
+    label: { fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.lg, textTransform: 'uppercase' },
+    textInput: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 14,
+      color: colors.ink,
+      fontSize: 15,
+    },
+    categoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      marginBottom: spacing.lg,
+      justifyContent: 'flex-start',
+    },
+    saveSection: {
+      marginTop: spacing.xxxl,
+      marginBottom: spacing.lg,
+    },
+  })
+    );
   const { width: screenWidth } = useWindowDimensions();
   const compact = screenWidth < 360;
   const tx = initial?.transaction;
@@ -309,7 +438,7 @@ export default function TransactionForm({
           <AnimatedPressable
             onPress={handleDeletePress}
             disabled={deleting}
-            style={[styles.deleteBtn, brutalBorder(2), deleting && styles.deleteBtnDisabled]}
+            style={[styles.deleteBtn, brutalBorder(2, colors), deleting && styles.deleteBtnDisabled]}
           >
             <Ionicons name="trash-outline" size={16} color={colors.expense} />
             <SText variant="caption2" color={colors.expense} style={{ fontWeight: '800' }}>
@@ -409,7 +538,7 @@ export default function TransactionForm({
                 {accounts.map((a) => (
                   <AnimatedPressable
                     key={`from-${a.id}`}
-                    style={[styles.accountChip, brutalBorder(2), fromAccountId === a.id && styles.accountChipActive]}
+                    style={[styles.accountChip, brutalBorder(2, colors), fromAccountId === a.id && styles.accountChipActive]}
                     onPress={() => setFromAccountId(a.id)}
                   >
                     <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>{a.name}</SText>
@@ -421,7 +550,7 @@ export default function TransactionForm({
                 {accounts.map((a) => (
                   <AnimatedPressable
                     key={`to-${a.id}`}
-                    style={[styles.accountChip, brutalBorder(2), toAccountId === a.id && styles.accountChipActive]}
+                    style={[styles.accountChip, brutalBorder(2, colors), toAccountId === a.id && styles.accountChipActive]}
                     onPress={() => setToAccountId(a.id)}
                   >
                     <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>{a.name}</SText>
@@ -436,7 +565,7 @@ export default function TransactionForm({
                 {accounts.map((a) => (
                   <AnimatedPressable
                     key={a.id}
-                    style={[styles.accountChip, brutalBorder(2), accountId === a.id && styles.accountChipActive]}
+                    style={[styles.accountChip, brutalBorder(2, colors), accountId === a.id && styles.accountChipActive]}
                     onPress={() => setAccountId(a.id)}
                   >
                     <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>{a.name}</SText>
@@ -462,7 +591,7 @@ export default function TransactionForm({
         {type === 'expense' && !tx ? (
           <FadeInView index={5}>
             <AnimatedPressable
-              style={[styles.recurringToggle, brutalBorder(2), isRecurring && styles.recurringActive]}
+              style={[styles.recurringToggle, brutalBorder(2, colors), isRecurring && styles.recurringActive]}
               onPress={() => setIsRecurring(!isRecurring)}
             >
               <SText variant="footnote" style={{ fontWeight: '800' }}>
@@ -471,7 +600,7 @@ export default function TransactionForm({
               <SText variant="caption2" color={colors.textMuted}>{isRecurring ? 'Sí' : 'No'}</SText>
             </AnimatedPressable>
             {isRecurring ? (
-              <View style={[styles.dayRow, brutalBorder(2)]}>
+              <View style={[styles.dayRow, brutalBorder(2, colors)]}>
                 <SText variant="footnote" style={{ fontWeight: '700' }}>Día del mes</SText>
                 <TextInput
                   style={styles.dayInput}
@@ -488,7 +617,7 @@ export default function TransactionForm({
         <FadeInView index={6}>
           <SText variant="subhead" style={styles.label}>Nota (opcional)</SText>
           <TextInput
-            style={[styles.textInput, brutalBorder(2), { minHeight: 72, textAlignVertical: 'top' }]}
+            style={[styles.textInput, brutalBorder(2, colors), { minHeight: 72, textAlignVertical: 'top' }]}
             value={note}
             onChangeText={setNote}
             placeholder="Detalle adicional..."
@@ -534,125 +663,3 @@ export default function TransactionForm({
   );
 }
 
-const styles = StyleSheet.create({
-  actionBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.expenseBg,
-  },
-  deleteBtnDisabled: { opacity: 0.6 },
-  scrollContent: { paddingHorizontal: spacing.xl },
-  toggleRow: { flexDirection: 'row', gap: 10, marginVertical: spacing.xl },
-  toggleBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: colors.ink,
-    backgroundColor: colors.surface,
-  },
-  toggleBtnThird: { paddingVertical: 12 },
-  toggleBtnCompact: { paddingVertical: 10, paddingHorizontal: 4 },
-  toggleExpense: { backgroundColor: colors.expenseBg },
-  toggleIncome: { backgroundColor: colors.incomeBg },
-  toggleTransfer: { backgroundColor: colors.surfaceAlt },
-  accountRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.lg },
-  accountChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-    maxWidth: '48%',
-  },
-  accountChipActive: { backgroundColor: colors.yellow },
-  recurringToggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    marginBottom: spacing.sm,
-  },
-  recurringActive: { backgroundColor: colors.pink },
-  dayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceAlt,
-    marginBottom: spacing.lg,
-  },
-  dayInput: {
-    width: 48,
-    textAlign: 'center',
-    fontWeight: '800',
-    fontSize: 18,
-    color: colors.ink,
-  },
-  amountCard: {
-    padding: spacing.xxl,
-    marginBottom: spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  amountCardCompact: { padding: spacing.lg },
-  amountInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  amountPrefix: { fontWeight: '700', marginRight: 2 },
-  amountInput: {
-    fontSize: 40,
-    fontWeight: '700',
-    color: colors.ink,
-    minWidth: 60,
-    paddingVertical: 4,
-    textAlign: 'center',
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const, minWidth: 100 } : {}),
-  },
-  amountHint: {
-    marginTop: 8,
-    textAlign: 'center',
-    width: '100%',
-  },
-  balanceHint: {
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  label: { fontWeight: '700', marginBottom: spacing.sm, marginTop: spacing.lg, textTransform: 'uppercase' },
-  textInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
-    color: colors.ink,
-    fontSize: 15,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: spacing.lg,
-    justifyContent: 'flex-start',
-  },
-  saveSection: {
-    marginTop: spacing.xxxl,
-    marginBottom: spacing.lg,
-  },
-});

@@ -9,7 +9,9 @@ import BrutalBox from './BrutalBox';
 import AnimatedPressable from './AnimatedPressable';
 import FadeInView from './FadeInView';
 import ProgressBar from './ProgressBar';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 interface SavingsGoalCardProps {
   goal: SavingsGoal;
@@ -18,6 +20,57 @@ interface SavingsGoalCardProps {
 }
 
 export default function SavingsGoalCard({ goal, onContribute, index = 0 }: SavingsGoalCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      card: { padding: spacing.lg },
+      header: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.md,
+        marginBottom: spacing.lg,
+      },
+      iconBadge: {
+        width: 48,
+        height: 48,
+        borderRadius: radii.sm,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      headerText: { flex: 1, minWidth: 0 },
+      subtitlePill: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: radii.pill,
+        marginTop: 6,
+        maxWidth: '100%',
+      },
+      pctBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: radii.sm,
+      },
+      body: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        marginBottom: spacing.md,
+      },
+      statsCol: { flex: 1, gap: spacing.sm },
+      statTile: { padding: spacing.md },
+      statLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
+      metaRow: { marginBottom: spacing.sm },
+      contributeBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        paddingVertical: 14,
+      },
+    })
+  );
+
   const percentage =
     goal.target_amount > 0
       ? Math.min((goal.saved_amount / goal.target_amount) * 100, 100)
@@ -37,7 +90,7 @@ export default function SavingsGoalCard({ goal, onContribute, index = 0 }: Savin
         contentStyle={styles.card}
       >
         <View style={styles.header}>
-          <View style={[styles.iconBadge, brutalBorder(2), { backgroundColor: accent }]}>
+          <View style={[styles.iconBadge, brutalBorder(2, colors), { backgroundColor: accent }]}>
             <Ionicons name={(goal.icon as any) || 'flag'} size={22} color={colors.ink} />
           </View>
           <View style={styles.headerText}>
@@ -45,14 +98,14 @@ export default function SavingsGoalCard({ goal, onContribute, index = 0 }: Savin
               {goal.title}
             </SText>
             {goal.subtitle ? (
-              <View style={[styles.subtitlePill, brutalBorder(2), { backgroundColor: colors.surfaceAlt }]}>
+              <View style={[styles.subtitlePill, brutalBorder(2, colors), { backgroundColor: colors.surfaceAlt }]}>
                 <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>
                   {goal.subtitle}
                 </SText>
               </View>
             ) : null}
           </View>
-          <View style={[styles.pctBadge, brutalBorder(2), { backgroundColor: accent }]}>
+          <View style={[styles.pctBadge, brutalBorder(2, colors), { backgroundColor: accent }]}>
             <SText variant="headline" style={{ fontWeight: '800' }}>{Math.round(percentage)}%</SText>
           </View>
         </View>
@@ -107,51 +160,3 @@ export default function SavingsGoalCard({ goal, onContribute, index = 0 }: Savin
     </FadeInView>
   );
 }
-
-const styles = StyleSheet.create({
-  card: { padding: spacing.lg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  iconBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerText: { flex: 1, minWidth: 0 },
-  subtitlePill: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    marginTop: 6,
-    maxWidth: '100%',
-  },
-  pctBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.sm,
-  },
-  body: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  statsCol: { flex: 1, gap: spacing.sm },
-  statTile: { padding: spacing.md },
-  statLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
-  metaRow: { marginBottom: spacing.sm },
-  contributeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: 14,
-  },
-});

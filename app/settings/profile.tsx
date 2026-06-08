@@ -13,7 +13,9 @@ import AuthFeedback from '@/src/components/AuthFeedback';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
 import { formatCOP } from '@/src/utils/currency';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 
 function getInitials(name?: string, email?: string | null): string {
   if (name?.trim()) {
@@ -27,6 +29,50 @@ function getInitials(name?: string, email?: string | null): string {
 }
 
 export default function ProfileSettingsScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    content: {
+      padding: spacing.xl,
+      paddingBottom: 120,
+    },
+    hero: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    avatar: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    sectionLabel: {
+      fontWeight: '800',
+      letterSpacing: 1,
+      marginBottom: spacing.sm,
+    },
+    summary: {
+      padding: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md,
+    },
+    summaryDivider: {
+      height: 2,
+      backgroundColor: colors.bgAlt,
+      marginVertical: spacing.md,
+    },
+  })
+    );
   const { session } = useAuth();
   const meta = session?.user?.user_metadata ?? {};
 
@@ -75,7 +121,7 @@ export default function ProfileSettingsScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <FadeInView>
             <BrutalBox bg={colors.yellow} shadow={4} contentStyle={styles.hero}>
-              <View style={[styles.avatar, brutalBorder(2)]}>
+              <View style={[styles.avatar, brutalBorder(2, colors)]}>
                 <SText variant="title2" style={{ fontWeight: '900' }}>{initials}</SText>
               </View>
               <View style={{ flex: 1 }}>
@@ -156,43 +202,3 @@ export default function ProfileSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 120,
-  },
-  hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionLabel: {
-    fontWeight: '800',
-    letterSpacing: 1,
-    marginBottom: spacing.sm,
-  },
-  summary: {
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  summaryDivider: {
-    height: 2,
-    backgroundColor: colors.bgAlt,
-    marginVertical: spacing.md,
-  },
-});

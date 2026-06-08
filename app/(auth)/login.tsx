@@ -16,7 +16,9 @@ import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import HighlightText from '@/src/components/HighlightText';
 import AuthFeedback, { AuthFeedbackType } from '@/src/components/AuthFeedback';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 interface FeedbackState {
   type: AuthFeedbackType;
@@ -34,11 +36,31 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { signIn } = useAuth();
+  const { colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
+      scroll: { flexGrow: 1, justifyContent: 'center' },
+      deco1: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: colors.decorative, top: 60, right: -20, borderWidth: 2, borderColor: 'rgba(0,0,0,0.05)' },
+      deco2: { position: 'absolute', width: 160, height: 160, borderRadius: 80, backgroundColor: colors.decorative, bottom: 40, left: -60, opacity: 0.6 },
+      topSection: { alignItems: 'center', marginBottom: 28 },
+      logoWrap: { width: 80, height: 80, justifyContent: 'center', alignItems: 'center' },
+      formCard: { padding: spacing.xl },
+      inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, marginBottom: spacing.md, height: 54 },
+      inputIcon: { marginLeft: 14 },
+      input: { flex: 1, color: colors.ink, fontSize: 15, paddingHorizontal: 12, fontWeight: '500' },
+      eyeBtn: { padding: 14, position: 'absolute', right: 0 },
+      forgotLink: { alignSelf: 'flex-end', marginBottom: spacing.lg },
+      registerLink: { marginTop: spacing.lg, alignItems: 'center' },
+      loadingBtn: { paddingVertical: 16, alignItems: 'center', marginTop: spacing.sm },
+    })
+  );
 
   const logoScale = useSharedValue(0.85);
   React.useEffect(() => {
@@ -120,7 +142,7 @@ export default function LoginScreen() {
             <AuthFeedback type={feedback.type} title={feedback.title} message={feedback.message} />
           ) : null}
 
-          <View style={[styles.inputGroup, brutalBorder(2)]}>
+          <View style={[styles.inputGroup, brutalBorder(2, colors)]}>
             <Ionicons name="mail-outline" size={18} color={colors.ink} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
@@ -137,7 +159,7 @@ export default function LoginScreen() {
             />
           </View>
 
-          <View style={[styles.inputGroup, brutalBorder(2)]}>
+          <View style={[styles.inputGroup, brutalBorder(2, colors)]}>
             <Ionicons name="lock-closed-outline" size={18} color={colors.ink} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { paddingRight: 48 }]}
@@ -185,20 +207,3 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 24 },
-  scroll: { flexGrow: 1, justifyContent: 'center' },
-  deco1: { position: 'absolute', width: 100, height: 100, borderRadius: 50, backgroundColor: colors.decorative, top: 60, right: -20, borderWidth: 2, borderColor: 'rgba(0,0,0,0.05)' },
-  deco2: { position: 'absolute', width: 160, height: 160, borderRadius: 80, backgroundColor: colors.decorative, bottom: 40, left: -60, opacity: 0.6 },
-  topSection: { alignItems: 'center', marginBottom: 28 },
-  logoWrap: { width: 80, height: 80, justifyContent: 'center', alignItems: 'center' },
-  formCard: { padding: spacing.xl },
-  inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radii.md, marginBottom: spacing.md, height: 54 },
-  inputIcon: { marginLeft: 14 },
-  input: { flex: 1, color: colors.ink, fontSize: 15, paddingHorizontal: 12, fontWeight: '500' },
-  eyeBtn: { padding: 14, position: 'absolute', right: 0 },
-  forgotLink: { alignSelf: 'flex-end', marginBottom: spacing.lg },
-  registerLink: { marginTop: spacing.lg, alignItems: 'center' },
-  loadingBtn: { paddingVertical: 16, alignItems: 'center', marginTop: spacing.sm },
-});

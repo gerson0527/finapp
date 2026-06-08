@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { colors, brutal, radii, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { brutal, radii, brutalBorder } from '@/src/constants/theme';
 
 interface BrutalBoxProps {
   children: ReactNode;
@@ -16,11 +17,14 @@ export default function BrutalBox({
   children,
   style,
   contentStyle,
-  bg = colors.surface,
+  bg,
   shadow = brutal.shadowOffset,
   radius = radii.lg,
   noShadow = false,
 }: BrutalBoxProps) {
+  const { colors } = useTheme();
+  const fill = bg ?? colors.surface;
+
   return (
     <View style={[styles.wrapper, !noShadow && { marginBottom: shadow, marginRight: shadow }, style]}>
       {!noShadow && (
@@ -31,17 +35,17 @@ export default function BrutalBox({
               top: shadow,
               left: shadow,
               borderRadius: radius,
-              backgroundColor: colors.ink,
+              backgroundColor: colors.shadow,
             },
           ]}
         />
       )}
       <View
         style={[
-          brutalBorder(),
+          brutalBorder(brutal.border, colors),
           {
             borderRadius: radius,
-            backgroundColor: bg,
+            backgroundColor: fill,
             overflow: 'hidden',
           },
           contentStyle,

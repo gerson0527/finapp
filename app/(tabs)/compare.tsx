@@ -18,10 +18,37 @@ import BrutalScreen from '@/src/components/BrutalScreen';
 import BalanceComparisonView from '@/src/components/BalanceComparisonView';
 import SkeletonLoader from '@/src/components/SkeletonLoader';
 import HighlightText from '@/src/components/HighlightText';
-import { colors, radii, spacing } from '@/src/constants/theme';
+import { radii, spacing } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function CompareScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
+    subtitle: { marginTop: 8, marginBottom: spacing.lg },
+    pickerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.lg,
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    emptyCard: { padding: spacing.xxxl, alignItems: 'center' },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 20 },
+    modalWrap: { marginBottom: 20 },
+    modalContent: { padding: spacing.xl, maxHeight: 360 },
+    monthItem: {
+      paddingVertical: 14,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.sm,
+    },
+    monthItemActive: { backgroundColor: colors.yellow },
+  })
+    );
   const insets = useSafeAreaInsets();
   const { refreshKey } = useApp();
   const currentMonth = getCurrentMonth();
@@ -161,24 +188,3 @@ export default function CompareScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
-  subtitle: { marginTop: 8, marginBottom: spacing.lg },
-  pickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  emptyCard: { padding: spacing.xxxl, alignItems: 'center' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 20 },
-  modalWrap: { marginBottom: 20 },
-  modalContent: { padding: spacing.xl, maxHeight: 360 },
-  monthItem: {
-    paddingVertical: 14,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.sm,
-  },
-  monthItemActive: { backgroundColor: colors.yellow },
-});

@@ -2,7 +2,9 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import SText from '@/src/components/SText';
-import { colors, radii, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import type { ThemeColors } from '@/src/constants/colors';
+import { radii, brutalBorder } from '@/src/constants/theme';
 
 export type AuthFeedbackType = 'success' | 'error' | 'info';
 
@@ -12,17 +14,20 @@ interface AuthFeedbackProps {
   title?: string;
 }
 
-const CONFIG: Record<AuthFeedbackType, { bg: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  success: { bg: colors.incomeBg, icon: 'checkmark-circle' },
-  error: { bg: colors.expenseBg, icon: 'alert-circle' },
-  info: { bg: colors.surfaceAlt, icon: 'mail' },
-};
+function getConfig(colors: ThemeColors): Record<AuthFeedbackType, { bg: string; icon: keyof typeof Ionicons.glyphMap }> {
+  return {
+    success: { bg: colors.incomeBg, icon: 'checkmark-circle' },
+    error: { bg: colors.expenseBg, icon: 'alert-circle' },
+    info: { bg: colors.surfaceAlt, icon: 'mail' },
+  };
+}
 
 export default function AuthFeedback({ type, message, title }: AuthFeedbackProps) {
-  const { bg, icon } = CONFIG[type];
+  const { colors } = useTheme();
+  const { bg, icon } = getConfig(colors)[type];
 
   return (
-    <View style={[styles.box, brutalBorder(2), { backgroundColor: bg }]}>
+    <View style={[styles.box, brutalBorder(2, colors), { backgroundColor: bg }]}>
       <Ionicons name={icon} size={22} color={colors.ink} style={styles.icon} />
       <View style={styles.textWrap}>
         {title ? (

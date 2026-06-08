@@ -15,9 +15,35 @@ import CategoryPieChart from '@/src/components/CategoryPieChart';
 import NetBalanceLineChart from '@/src/components/NetBalanceLineChart';
 import InsightCard from '@/src/components/InsightCard';
 import { formatCOP } from '@/src/utils/currency';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 
 export default function AnalyticsScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    content: { padding: spacing.xl, paddingBottom: 120 },
+    compareCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    compareIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radii.sm,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    sectionLabel: { fontWeight: '800', letterSpacing: 0.5, marginBottom: spacing.sm },
+    chartCard: { padding: spacing.lg, marginBottom: spacing.xl, alignItems: 'center' },
+  })
+    );
   const { selectedMonth } = useApp();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Awaited<ReturnType<typeof getAdvancedAnalytics>> | null>(null);
@@ -47,11 +73,11 @@ export default function AnalyticsScreen() {
           </SText>
 
           {loading ? (
-            <SkeletonLoader height={120} style={{ marginBottom: spacing.lg }} />
+            <SkeletonLoader variant="card" />
           ) : data ? (
             <>
               <BrutalBox bg={colors.yellow} shadow={4} contentStyle={styles.compareCard}>
-                <View style={[styles.compareIcon, brutalBorder(2)]}>
+                <View style={[styles.compareIcon, brutalBorder(2, colors)]}>
                   <Ionicons
                     name={pct != null && pct <= 0 ? 'trending-down' : 'trending-up'}
                     size={22}
@@ -115,23 +141,3 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: { padding: spacing.xl, paddingBottom: 120 },
-  compareCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  compareIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sectionLabel: { fontWeight: '800', letterSpacing: 0.5, marginBottom: spacing.sm },
-  chartCard: { padding: spacing.lg, marginBottom: spacing.xl, alignItems: 'center' },
-});

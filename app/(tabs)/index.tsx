@@ -15,7 +15,10 @@ import SText from '@/src/components/SText';
 import TransactionItem from '@/src/components/TransactionItem';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import ProgressBar from '@/src/components/ProgressBar';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import type { ThemeColors } from '@/src/constants/colors';
 import { useApp } from '@/src/context/AppContext';
 import { formatCOP } from '@/src/utils/currency';
 import { isEditableTransaction } from '@/lib/transactionHelpers';
@@ -34,10 +37,16 @@ function BalanceHero({
   value,
   loading,
   critical,
+  colors,
+  styles,
+  accentOnSurface,
 }: {
   value: number;
   loading: boolean;
   critical: boolean;
+  colors: ThemeColors;
+  styles: Record<string, object>;
+  accentOnSurface?: boolean;
 }) {
   const isEmpty = !loading && isBalanceEmpty(value);
   const isLow = !loading && critical && !isEmpty;
@@ -52,7 +61,7 @@ function BalanceHero({
   return (
     <Animated.View style={[styles.heroInner, animStyle]}>
       {isEmpty || isLow ? (
-        <View style={[styles.zeroBadge, brutalBorder(2)]}>
+        <View style={[styles.zeroBadge, brutalBorder(2, colors)]}>
           <Ionicons name="sad-outline" size={14} color={colors.expense} />
           <SText variant="caption2" color={colors.expense} style={{ fontWeight: '800' }}>
             {isEmpty ? 'Sin saldo' : 'Casi en cero'}
@@ -67,7 +76,11 @@ function BalanceHero({
       ) : (
         <SText
           variant="title1"
-          style={[styles.heroAmount, (isEmpty || isLow) && { color: colors.expense }]}
+          style={[
+            styles.heroAmount,
+            (isEmpty || isLow) && { color: colors.expense },
+            accentOnSurface && !isEmpty && !isLow && { color: colors.yellow },
+          ]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.55}
@@ -85,19 +98,23 @@ function StatTile({
   loading,
   tone,
   icon,
+  colors,
+  styles,
 }: {
   label: string;
   value: string;
   loading: boolean;
   tone: 'income' | 'expense';
   icon: keyof typeof Ionicons.glyphMap;
+  colors: ThemeColors;
+  styles: Record<string, object>;
 }) {
   const bg = tone === 'income' ? colors.incomeBg : colors.expenseBg;
-  const fg = tone === 'income' ? '#15803D' : colors.expense;
+  const fg = tone === 'income' ? colors.income : colors.expense;
 
   return (
     <BrutalBox bg={bg} radius={radii.md} shadow={3} style={{ flex: 1 }} contentStyle={styles.statTile}>
-      <View style={[styles.statIcon, brutalBorder(2), { backgroundColor: colors.surface }]}>
+      <View style={[styles.statIcon, brutalBorder(2, colors), { backgroundColor: colors.surface }]}>
         <Ionicons name={icon} size={18} color={fg} />
       </View>
       <SText variant="caption2" color={colors.textMuted}>{label}</SText>
@@ -116,16 +133,21 @@ function QuickAction({
   icon,
   label,
   onPress,
-  bg = colors.surface,
+  bg,
+  colors,
+  styles,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress: () => void;
   bg?: string;
+  colors: ThemeColors;
+  styles: Record<string, object>;
 }) {
+  const boxBg = bg ?? colors.surface;
   return (
     <AnimatedPressable style={{ flex: 1 }} onPress={onPress}>
-      <BrutalBox bg={bg} radius={radii.md} shadow={3} contentStyle={styles.quickAction}>
+      <BrutalBox bg={boxBg} radius={radii.md} shadow={3} contentStyle={styles.quickAction}>
         <Ionicons name={icon} size={22} color={colors.ink} />
         <SText variant="micro" style={styles.quickLabel}>{label}</SText>
       </BrutalBox>
@@ -134,6 +156,99 @@ function QuickAction({
 }
 
 export default function HomeScreen() {
+  const { colors, isDark } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    scroll: { flex: 1, zIndex: 1 },
+    scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    heroCard: {
+      paddingVertical: spacing.xxxl,
+      paddingHorizontal: spacing.xl,
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    heroInner: { alignItems: 'center', width: '100%' },
+    zeroBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: radii.pill,
+      marginBottom: spacing.sm,
+    },
+    heroLabel: { letterSpacing: 1, marginBottom: spacing.sm },
+    heroAmount: { fontWeight: '800', fontSize: 36, textAlign: 'center', width: '100%' },
+    flowPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: radii.pill,
+      marginTop: spacing.lg,
+    },
+    errorBanner: { padding: spacing.md, marginBottom: spacing.md },
+    statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+    statTile: { flex: 1, padding: spacing.lg },
+    statIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    quickRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+    quickAction: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.lg,
+      gap: 6,
+    },
+    quickLabel: { fontWeight: '700', textAlign: 'center' },
+    healthCard: { padding: spacing.lg, marginBottom: spacing.lg },
+    healthHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    sectionTitle: { fontWeight: '800', textTransform: 'uppercase' },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    txnCard: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, marginBottom: spacing.lg },
+    emptyState: { alignItems: 'center', paddingVertical: spacing.xxxl },
+    emptyIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: radii.md,
+      backgroundColor: colors.bgAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+  })
+    );
   const router = useRouter();
   const { selectedMonth, refreshKey } = useApp();
   const stats = useMonthlyStats(selectedMonth);
@@ -221,22 +336,35 @@ export default function HomeScreen() {
 
         <FadeInView index={1}>
           <BrutalBox
-            bg={!balanceLoading && balanceCritical ? colors.expenseBg : colors.yellow}
+            bg={
+              !balanceLoading && balanceCritical
+                ? colors.expenseBg
+                : isDark
+                  ? colors.surface
+                  : colors.yellow
+            }
             radius={radii.xl}
             shadow={6}
             contentStyle={styles.heroCard}
           >
-            <BalanceHero value={balance} loading={balanceLoading} critical={balanceCritical} />
+            <BalanceHero
+              value={balance}
+              loading={balanceLoading}
+              critical={balanceCritical}
+              colors={colors}
+              styles={styles}
+              accentOnSurface={isDark}
+            />
             {!stats.loading && (
-              <View style={[styles.flowPill, brutalBorder(2), { backgroundColor: colors.surface }]}>
+              <View style={[styles.flowPill, brutalBorder(2, colors), { backgroundColor: colors.surface }]}>
                 <Ionicons
                   name={netPositive ? 'trending-up' : 'trending-down'}
                   size={16}
-                  color={netPositive ? '#15803D' : colors.expense}
+                  color={netPositive ? colors.income : colors.expense}
                 />
                 <SText
                   variant="caption1"
-                  style={{ fontWeight: '700', color: netPositive ? '#15803D' : colors.expense }}
+                  style={{ fontWeight: '700', color: netPositive ? colors.income : colors.expense }}
                 >
                   {netPositive ? '+' : ''}{formatCOP(netFlow)} este mes
                 </SText>
@@ -261,6 +389,8 @@ export default function HomeScreen() {
               loading={stats.loading}
               tone="income"
               icon="arrow-up-circle"
+              colors={colors}
+              styles={styles}
             />
             <StatTile
               label="GASTOS"
@@ -268,15 +398,17 @@ export default function HomeScreen() {
               loading={stats.loading}
               tone="expense"
               icon="arrow-down-circle"
+              colors={colors}
+              styles={styles}
             />
           </View>
         </FadeInView>
 
         <FadeInView index={3}>
           <View style={styles.quickRow}>
-            <QuickAction icon="add-circle" label="Añadir" onPress={() => router.push('/(tabs)/add')} bg={colors.yellow} />
-            <QuickAction icon="wallet" label="Presup." onPress={() => router.push('/(tabs)/budgets')} />
-            <QuickAction icon="analytics" label="Comparar" onPress={() => router.push('/(tabs)/compare')} />
+            <QuickAction icon="add-circle" label="Añadir" onPress={() => router.push('/(tabs)/add')} bg={colors.yellow} colors={colors} styles={styles} />
+            <QuickAction icon="wallet" label="Presup." onPress={() => router.push('/(tabs)/budgets')} colors={colors} styles={styles} />
+            <QuickAction icon="analytics" label="Comparar" onPress={() => router.push('/(tabs)/compare')} colors={colors} styles={styles} />
           </View>
         </FadeInView>
 
@@ -343,7 +475,7 @@ export default function HomeScreen() {
               </>
             ) : recentTxns.length === 0 ? (
               <View style={styles.emptyState}>
-                <View style={[styles.emptyIcon, brutalBorder(2)]}>
+                <View style={[styles.emptyIcon, brutalBorder(2, colors)]}>
                   <Ionicons name="receipt-outline" size={28} color={colors.textMuted} />
                 </View>
                 <SText variant="body" style={{ fontWeight: '700', marginTop: 12 }}>
@@ -392,92 +524,3 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, zIndex: 1 },
-  scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  heroCard: {
-    paddingVertical: spacing.xxxl,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  heroInner: { alignItems: 'center', width: '100%' },
-  zeroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    marginBottom: spacing.sm,
-  },
-  heroLabel: { letterSpacing: 1, marginBottom: spacing.sm },
-  heroAmount: { fontWeight: '800', fontSize: 36, textAlign: 'center', width: '100%' },
-  flowPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.pill,
-    marginTop: spacing.lg,
-  },
-  errorBanner: { padding: spacing.md, marginBottom: spacing.md },
-  statsRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
-  statTile: { flex: 1, padding: spacing.lg },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  quickRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  quickAction: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.lg,
-    gap: 6,
-  },
-  quickLabel: { fontWeight: '700', textAlign: 'center' },
-  healthCard: { padding: spacing.lg, marginBottom: spacing.lg },
-  healthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  sectionTitle: { fontWeight: '800', textTransform: 'uppercase' },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  txnCard: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, marginBottom: spacing.lg },
-  emptyState: { alignItems: 'center', paddingVertical: spacing.xxxl },
-  emptyIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.md,
-    backgroundColor: colors.bgAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-});

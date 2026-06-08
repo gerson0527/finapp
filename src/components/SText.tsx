@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, TextProps, StyleSheet } from 'react-native';
 import { typography, textSharp } from '@/src/constants/typography';
-import { colors } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 type Variant = keyof typeof typography;
 
@@ -18,6 +18,7 @@ export default function SText({
   style,
   ...props
 }: STextProps) {
+  const { colors } = useTheme();
   const base = typography[variant];
 
   return (

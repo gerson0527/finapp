@@ -15,7 +15,9 @@ import AuthFeedback from '@/src/components/AuthFeedback';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 
 function timeToDate(time: string): Date {
   const [h, m] = time.split(':').map(Number);
@@ -29,6 +31,27 @@ function dateToTime(d: Date): string {
 }
 
 export default function NotificationsSettingsScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    content: { padding: spacing.xl, paddingBottom: 120, gap: spacing.lg },
+    intro: { lineHeight: 22, marginBottom: spacing.sm },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    timeBtn: {
+      backgroundColor: colors.yellow,
+      borderRadius: radii.md,
+      padding: spacing.lg,
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+  })
+    );
   const [settings, setSettings] = useState<NotificationSettings>({
     daily_reminder_enabled: true,
     daily_reminder_time: '20:00',
@@ -118,7 +141,7 @@ export default function NotificationsSettingsScreen() {
 
             {settings.daily_reminder_enabled ? (
               <AnimatedPressable
-                style={[styles.timeBtn, brutalBorder()]}
+                style={[styles.timeBtn, brutalBorder(undefined, colors)]}
                 onPress={() => setShowPicker(true)}
               >
                 <SText variant="footnote" style={{ fontWeight: '800' }}>Hora del recordatorio</SText>
@@ -160,20 +183,3 @@ export default function NotificationsSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: { padding: spacing.xl, paddingBottom: 120, gap: spacing.lg },
-  intro: { lineHeight: 22, marginBottom: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  timeBtn: {
-    backgroundColor: colors.yellow,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-});

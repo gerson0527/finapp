@@ -9,7 +9,9 @@ import SText from '@/src/components/SText';
 import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii, spacing, brutalBorder, webTextInputReset } from '@/src/constants/theme';
 import { copDigitsToNumber, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 
 interface BudgetMonthReviewModalProps {
@@ -32,7 +34,80 @@ export default function BudgetMonthReviewModal({
   onDismiss,
 }: BudgetMonthReviewModalProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const [limits, setLimits] = useState<Record<string, string>>({});
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.lg,
+      },
+      wrap: { maxHeight: '88%', width: '100%' },
+      content: { padding: spacing.lg },
+      header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        marginBottom: spacing.lg,
+      },
+      headerText: { flex: 1, minWidth: 0 },
+      icon: {
+        width: 48,
+        height: 48,
+        borderRadius: radii.sm,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+      },
+      infoBox: { padding: spacing.md, marginBottom: spacing.lg },
+      list: { maxHeight: 280, marginBottom: spacing.lg },
+      row: {
+        gap: spacing.sm,
+        paddingVertical: spacing.md,
+      },
+      rowBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
+      rowHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+      },
+      rowIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: radii.sm,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+      },
+      rowInfo: { flex: 1, minWidth: 0 },
+      limitWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        borderRadius: radii.sm,
+        paddingHorizontal: spacing.md,
+        paddingVertical: 4,
+        gap: 6,
+        alignSelf: 'stretch',
+      },
+      limitInput: {
+        flex: 1,
+        color: colors.ink,
+        fontSize: 16,
+        fontWeight: '800',
+        paddingVertical: 10,
+        textAlign: 'right',
+        minWidth: 0,
+        ...webTextInputReset,
+      },
+      copLabel: { fontWeight: '700', flexShrink: 0 },
+      cancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
+    })
+  );
 
   useEffect(() => {
     if (!visible) return;
@@ -67,7 +142,7 @@ export default function BudgetMonthReviewModal({
         <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.wrap}>
           <BrutalBox shadow={5} contentStyle={styles.content}>
             <View style={styles.header}>
-              <View style={[styles.icon, brutalBorder(), { backgroundColor: colors.yellow }]}>
+              <View style={[styles.icon, brutalBorder(undefined, colors), { backgroundColor: colors.yellow }]}>
                 <Ionicons name="calendar" size={22} color={colors.ink} />
               </View>
               <View style={styles.headerText}>
@@ -94,7 +169,7 @@ export default function BudgetMonthReviewModal({
                 <View key={b.id} style={[styles.row, i > 0 && styles.rowBorder]}>
                   <View style={styles.rowHeader}>
                     <View
-                      style={[styles.rowIcon, brutalBorder(), { backgroundColor: b.category_color || colors.yellow }]}
+                      style={[styles.rowIcon, brutalBorder(undefined, colors), { backgroundColor: b.category_color || colors.yellow }]}
                     >
                       <Ionicons name={(b.category_icon as any) || 'ellipse'} size={16} color={colors.ink} />
                     </View>
@@ -108,7 +183,7 @@ export default function BudgetMonthReviewModal({
                     </View>
                   </View>
 
-                  <View style={[styles.limitWrap, brutalBorder()]}>
+                  <View style={[styles.limitWrap, brutalBorder(undefined, colors)]}>
                     <SText variant="caption2" style={{ fontWeight: '700' }}>$</SText>
                     <TextInput
                       style={styles.limitInput}
@@ -143,73 +218,3 @@ export default function BudgetMonthReviewModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-  },
-  wrap: { maxHeight: '88%', width: '100%' },
-  content: { padding: spacing.lg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  headerText: { flex: 1, minWidth: 0 },
-  icon: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  infoBox: { padding: spacing.md, marginBottom: spacing.lg },
-  list: { maxHeight: 280, marginBottom: spacing.lg },
-  row: {
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  rowBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
-  rowHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  rowInfo: { flex: 1, minWidth: 0 },
-  limitWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    gap: 6,
-    alignSelf: 'stretch',
-  },
-  limitInput: {
-    flex: 1,
-    color: colors.ink,
-    fontSize: 16,
-    fontWeight: '800',
-    paddingVertical: 10,
-    textAlign: 'right',
-    minWidth: 0,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
-  },
-  copLabel: { fontWeight: '700', flexShrink: 0 },
-  cancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
-});

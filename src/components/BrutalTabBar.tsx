@@ -10,13 +10,32 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SText from '@/src/components/SText';
-import { colors, brutal, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { brutal, brutalBorder } from '@/src/constants/theme';
 import { typography } from '@/src/constants/typography';
 
-/** 3 pestañas por lado + hueco central para el + */
+type TabRoute = { key: string; name: string };
+
+type BrutalTabBarProps = {
+  state: { index: number; routes: TabRoute[] };
+  descriptors: Record<
+    string,
+    {
+      options: {
+        title?: string;
+        tabBarIcon?: (props: { focused: boolean; color: string; size: number }) => React.ReactNode;
+      };
+    }
+  >;
+  navigation: {
+    emit: (event: { type: string; target: string; canPreventDefault?: boolean }) => { defaultPrevented: boolean };
+    navigate: (name: string) => void;
+  };
+};
+
 const LEFT_TABS = ['index', 'history', 'budgets'] as const;
 const RIGHT_TABS = ['savings', 'compare', 'more'] as const;
 const ADD_ROUTE = 'add';
@@ -25,6 +44,7 @@ const FAB_SIZE = 52;
 const FAB_NOTCH = 72;
 
 function AddFab({ focused, onPress }: { focused: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
   const floatY = useSharedValue(0);
   const scale = useSharedValue(1);
 
@@ -50,8 +70,8 @@ function AddFab({ focused, onPress }: { focused: boolean; onPress: () => void })
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Añadir transacción">
       <Animated.View style={[styles.fabOuter, animStyle]}>
-        <View style={styles.fabShadow} />
-        <View style={[styles.fab, brutalBorder()]}>
+        <View style={[styles.fabShadow, { backgroundColor: colors.shadow }]} />
+        <View style={[styles.fab, brutalBorder(brutal.border, colors), { backgroundColor: colors.yellow }]}>
           <Ionicons name="add" size={28} color={colors.ink} />
         </View>
       </Animated.View>
@@ -66,11 +86,12 @@ function TabSlot({
   navigation,
 }: {
   routeName: string;
-  state: BottomTabBarProps['state'];
-  descriptors: BottomTabBarProps['descriptors'];
-  navigation: BottomTabBarProps['navigation'];
+  state: BrutalTabBarProps['state'];
+  descriptors: BrutalTabBarProps['descriptors'];
+  navigation: BrutalTabBarProps['navigation'];
 }) {
-  const route = state.routes.find((r) => r.name === routeName);
+  const { colors } = useTheme();
+  const route = state.routes.find((r: TabRoute) => r.name === routeName);
   if (!route) return null;
 
   const index = state.routes.indexOf(route);
@@ -105,13 +126,26 @@ function TabSlot({
   );
 }
 
-export default function BrutalTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+export default function BrutalTabBar({ state, descriptors, navigation }: BrutalTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const barStyles = useThemedStyles((c) =>
+    StyleSheet.create({
+      bar: {
+        backgroundColor: c.bg,
+        borderTopWidth: brutal.border,
+        borderTopColor: c.ink,
+        paddingTop: 10,
+        overflow: 'visible',
+      },
+    })
+  );
+
   const addFocused = state.routes[state.index]?.name === ADD_ROUTE;
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'ios' ? 16 : 8);
 
   const openAdd = () => {
-    const addRoute = state.routes.find((r) => r.name === ADD_ROUTE);
+    const addRoute = state.routes.find((r: TabRoute) => r.name === ADD_ROUTE);
     if (!addRoute) return;
     const event = navigation.emit({
       type: 'tabPress',
@@ -129,7 +163,7 @@ export default function BrutalTabBar({ state, descriptors, navigation }: BottomT
         <AddFab focused={addFocused} onPress={openAdd} />
       </View>
 
-      <View style={[styles.bar, { paddingBottom: bottomPad }]}>
+      <View style={[barStyles.bar, { paddingBottom: bottomPad }]}>
         <View style={styles.row}>
           <View style={styles.side}>
             {LEFT_TABS.map((name) => (
@@ -175,22 +209,13 @@ const styles = StyleSheet.create({
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_SIZE / 2,
-    backgroundColor: colors.ink,
   },
   fab: {
     width: FAB_SIZE,
     height: FAB_SIZE,
     borderRadius: FAB_SIZE / 2,
-    backgroundColor: colors.yellow,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  bar: {
-    backgroundColor: colors.bg,
-    borderTopWidth: brutal.border,
-    borderTopColor: colors.ink,
-    paddingTop: 10,
-    overflow: 'visible',
   },
   row: {
     flexDirection: 'row',

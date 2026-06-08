@@ -20,9 +20,53 @@ import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import HighlightText from '@/src/components/HighlightText';
 import AuthFeedback from '@/src/components/AuthFeedback';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 
 export default function ForgotPasswordScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+      paddingHorizontal: spacing.xl,
+    },
+    scroll: { flexGrow: 1, justifyContent: 'center', paddingTop: 48 },
+    backBtn: {
+      position: 'absolute',
+      left: spacing.xl,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      zIndex: 1,
+    },
+    subtitle: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.xl,
+      lineHeight: 22,
+    },
+    formCard: { padding: spacing.xl },
+    inputGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      marginBottom: spacing.lg,
+      height: 54,
+    },
+    inputIcon: { marginLeft: 14 },
+    input: {
+      flex: 1,
+      color: colors.ink,
+      fontSize: 15,
+      paddingHorizontal: 12,
+      fontWeight: '500',
+    },
+  })
+    );
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -88,7 +132,7 @@ export default function ForgotPasswordScreen() {
 
           {!sent ? (
             <>
-              <View style={[styles.inputGroup, brutalBorder(2)]}>
+              <View style={[styles.inputGroup, brutalBorder(2, colors)]}>
                 <Ionicons name="mail-outline" size={18} color={colors.ink} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -117,41 +161,3 @@ export default function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    paddingHorizontal: spacing.xl,
-  },
-  scroll: { flexGrow: 1, justifyContent: 'center', paddingTop: 48 },
-  backBtn: {
-    position: 'absolute',
-    left: spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    zIndex: 1,
-  },
-  subtitle: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.xl,
-    lineHeight: 22,
-  },
-  formCard: { padding: spacing.xl },
-  inputGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    marginBottom: spacing.lg,
-    height: 54,
-  },
-  inputIcon: { marginLeft: 14 },
-  input: {
-    flex: 1,
-    color: colors.ink,
-    fontSize: 15,
-    paddingHorizontal: 12,
-    fontWeight: '500',
-  },
-});

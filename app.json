@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "finapp",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.finapp.dev"
@@ -28,7 +28,7 @@
       "name": "FinApp - Finanzas Personales",
       "shortName": "FinApp",
       "themeColor": "#AAFF00",
-      "backgroundColor": "#0D0D0D",
+      "backgroundColor": "#0D0D14",
       "display": "standalone",
       "orientation": "portrait",
       "barStyle": "black-translucent",

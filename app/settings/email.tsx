@@ -10,9 +10,11 @@ import SettingsField from '@/src/components/SettingsField';
 import AuthFeedback from '@/src/components/AuthFeedback';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
-import { colors, radii, spacing } from '@/src/constants/theme';
+import { radii, spacing } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export default function EmailSettingsScreen() {
+  const { colors } = useTheme();
   const { session } = useAuth();
   const currentEmail = session?.user?.email ?? '';
 

@@ -15,7 +15,9 @@ import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import { formatCOP } from '@/src/utils/currency';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 interface BalanceExceededAlertProps {
   visible: boolean;
@@ -79,17 +81,76 @@ export default function BalanceExceededAlert({
   amount,
   onDismiss,
 }: BalanceExceededAlertProps) {
+  const { colors } = useTheme();
   const cardShake = useCardShake(visible);
   const shortfall = Math.max(amount - balance, 0);
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: spacing.xl,
+      },
+      wrap: { width: '100%' },
+      card: {
+        padding: spacing.xl,
+        alignItems: 'center',
+      },
+      iconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: spacing.lg,
+      },
+      stopBadge: {
+        position: 'absolute',
+        right: -4,
+        bottom: -2,
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: colors.yellow,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      title: {
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+      },
+      message: {
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: spacing.md,
+      },
+      tipBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.sm,
+        padding: spacing.md,
+        width: '100%',
+      },
+      dismissBtn: {
+        marginTop: spacing.md,
+        paddingVertical: spacing.sm,
+      },
+    })
+  );
 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <Animated.View style={[styles.wrap, cardShake]}>
           <BrutalBox bg={colors.expenseBg} shadow={6} contentStyle={styles.card}>
-            <View style={[styles.iconCircle, brutalBorder(3)]}>
+            <View style={[styles.iconCircle, brutalBorder(3, colors)]}>
               <Ionicons name="wallet-outline" size={44} color={colors.expense} />
-              <View style={[styles.stopBadge, brutalBorder(3)]}>
+              <View style={[styles.stopBadge, brutalBorder(3, colors)]}>
                 <Ionicons name="close" size={14} color={colors.ink} />
               </View>
             </View>
@@ -126,59 +187,3 @@ export default function BalanceExceededAlert({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  wrap: { width: '100%' },
-  card: {
-    padding: spacing.xl,
-    alignItems: 'center',
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  stopBadge: {
-    position: 'absolute',
-    right: -4,
-    bottom: -2,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colors.yellow,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  message: {
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: spacing.md,
-  },
-  tipBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    width: '100%',
-  },
-  dismissBtn: {
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-});

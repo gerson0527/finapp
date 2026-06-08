@@ -9,7 +9,9 @@ import { es } from 'date-fns/locale';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
-import { colors, radii } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii } from '@/src/constants/theme';
 
 interface TransactionItemProps {
   transaction: Transaction;
@@ -28,6 +30,39 @@ export default function TransactionItem({
   onPress,
   readOnly = false,
 }: TransactionItemProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      container: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 2,
+        borderBottomColor: colors.bgAlt,
+      },
+      iconWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: radii.sm,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: colors.ink,
+      },
+      info: { flex: 1, marginLeft: 12, minWidth: 0 },
+      amountBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: radii.sm,
+        marginLeft: 8,
+        borderWidth: 2,
+        borderColor: colors.ink,
+        flexShrink: 0,
+        maxWidth: '42%',
+      },
+    })
+  );
+
   const isIncome = transaction.type === 'income';
   const cat = transaction.category;
 
@@ -88,33 +123,3 @@ export default function TransactionItem({
     </FadeInView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.bgAlt,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.ink,
-  },
-  info: { flex: 1, marginLeft: 12, minWidth: 0 },
-  amountBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.sm,
-    marginLeft: 8,
-    borderWidth: 2,
-    borderColor: colors.ink,
-    flexShrink: 0,
-    maxWidth: '42%',
-  },
-});

@@ -6,7 +6,8 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { colors, brutal, radii, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { brutal, brutalBorder } from '@/src/constants/theme';
 
 interface ProgressBarProps {
   percentage: number;
@@ -17,10 +18,13 @@ interface ProgressBarProps {
 
 export default function ProgressBar({
   percentage,
-  color = colors.yellow,
+  color,
   height = 10,
-  backgroundColor = colors.bgAlt,
+  backgroundColor,
 }: ProgressBarProps) {
+  const { colors } = useTheme();
+  const fillColor = color ?? colors.yellow;
+  const trackBg = backgroundColor ?? colors.bgAlt;
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -35,11 +39,11 @@ export default function ProgressBar({
   }));
 
   return (
-    <View style={[styles.track, brutalBorder(2), { height, backgroundColor, borderRadius: height / 2 }]}>
+    <View style={[styles.track, brutalBorder(2, colors), { height, backgroundColor: trackBg, borderRadius: height / 2 }]}>
       <Animated.View
         style={[
           styles.fill,
-          { height: height - 4, backgroundColor: color, borderRadius: (height - 4) / 2, margin: 2 },
+          { height: height - 4, backgroundColor: fillColor, borderRadius: (height - 4) / 2, margin: 2 },
           fillStyle,
         ]}
       />

@@ -3,9 +3,10 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Tabs } from 'expo-router';
 import BrutalTabBar from '@/src/components/BrutalTabBar';
-import { colors } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 function TabIcon({ name, focused }: { name: keyof typeof Ionicons.glyphMap; focused: boolean }) {
+  const { colors } = useTheme();
   const scale = useSharedValue(1);
   React.useEffect(() => {
     scale.value = withSpring(focused ? 1.08 : 1, { damping: 12 });
@@ -24,9 +25,17 @@ function TabIcon({ name, focused }: { name: keyof typeof Ionicons.glyphMap; focu
 }
 
 export default function TabLayout() {
+  const { colors } = useTheme();
+
   return (
     <Tabs
-      tabBar={(props) => <BrutalTabBar {...props} />}
+      tabBar={(props) => (
+        <BrutalTabBar
+          state={props.state}
+          descriptors={props.descriptors}
+          navigation={props.navigation as any}
+        />
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.ink,

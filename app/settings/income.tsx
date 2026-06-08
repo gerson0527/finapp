@@ -10,10 +10,13 @@ import AuthFeedback from '@/src/components/AuthFeedback';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
 import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, webTextInputReset } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 import { View, TextInput, Platform } from 'react-native';
 
 export default function IncomeSettingsScreen() {
+  const { colors } = useTheme();
   const [income, setIncome] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,6 +32,49 @@ export default function IncomeSettingsScreen() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      content: {
+        padding: spacing.xl,
+        paddingBottom: 120,
+        gap: spacing.lg,
+      },
+      intro: {
+        lineHeight: 22,
+        marginBottom: spacing.sm,
+      },
+      label: {
+        fontWeight: '800',
+        letterSpacing: 0.5,
+        marginBottom: spacing.sm,
+      },
+      amountCard: {
+        padding: spacing.xl,
+        marginBottom: spacing.lg,
+      },
+      amountRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        marginBottom: spacing.sm,
+      },
+      amountInput: {
+        fontSize: 32,
+        fontWeight: '800',
+        color: colors.ink,
+        minWidth: 80,
+        textAlign: 'center',
+        ...webTextInputReset,
+        ...(Platform.OS === 'web' ? { minWidth: 120 } : {}),
+      },
+      tip: {
+        padding: spacing.lg,
+        marginBottom: spacing.lg,
+      },
+    })
+  );
 
   async function handleSave() {
     const amount = copDigitsToNumber(income);
@@ -113,42 +159,3 @@ export default function IncomeSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 120,
-    gap: spacing.lg,
-  },
-  intro: {
-    lineHeight: 22,
-    marginBottom: spacing.sm,
-  },
-  label: {
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-  },
-  amountCard: {
-    padding: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginBottom: spacing.sm,
-  },
-  amountInput: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: colors.ink,
-    minWidth: 80,
-    textAlign: 'center',
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const, minWidth: 120 } : {}),
-  },
-  tip: {
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-});

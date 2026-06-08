@@ -14,34 +14,39 @@ import { formatMonthLabel } from '@/lib/month';
 import { formatCOP } from '@/src/utils/currency';
 import SText from '@/src/components/SText';
 import BrutalBox from '@/src/components/BrutalBox';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import type { ThemeColors } from '@/src/constants/colors';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
 
-const RESULT_CONFIG = {
-  gain: {
-    icon: 'trending-up' as const,
-    emoji: '🎉',
-    title: '¡Ganancia!',
-    subtitle: 'Tu balance mejoró respecto al mes comparado',
-    bg: colors.incomeBg,
-    accent: '#15803D',
-  },
-  loss: {
-    icon: 'trending-down' as const,
-    emoji: '😔',
-    title: 'Pérdida',
-    subtitle: 'Tu balance bajó respecto al mes comparado',
-    bg: colors.expenseBg,
-    accent: colors.expense,
-  },
-  neutral: {
-    icon: 'remove' as const,
-    emoji: '😐',
-    title: 'Sin cambio',
-    subtitle: 'Tu balance se mantiene igual',
-    bg: colors.bgAlt,
-    accent: colors.textMuted,
-  },
-};
+function getResultConfig(colors: ThemeColors) {
+  return {
+    gain: {
+      icon: 'trending-up' as const,
+      emoji: '🎉',
+      title: '¡Ganancia!',
+      subtitle: 'Tu balance mejoró respecto al mes comparado',
+      bg: colors.incomeBg,
+      accent: '#15803D',
+    },
+    loss: {
+      icon: 'trending-down' as const,
+      emoji: '😔',
+      title: 'Pérdida',
+      subtitle: 'Tu balance bajó respecto al mes comparado',
+      bg: colors.expenseBg,
+      accent: colors.expense,
+    },
+    neutral: {
+      icon: 'remove' as const,
+      emoji: '😐',
+      title: 'Sin cambio',
+      subtitle: 'Tu balance se mantiene igual',
+      bg: colors.bgAlt,
+      accent: colors.textMuted,
+    },
+  };
+}
 
 interface BalanceComparisonViewProps {
   comparison: BalanceComparison;
@@ -52,10 +57,52 @@ export default function BalanceComparisonView({
   comparison,
   compact = false,
 }: BalanceComparisonViewProps) {
-  const cfg = RESULT_CONFIG[comparison.result];
+  const { colors } = useTheme();
+  const cfg = getResultConfig(colors)[comparison.result];
   const iconScale = useSharedValue(0.6);
   const iconRotate = useSharedValue(0);
   const cardScale = useSharedValue(0.95);
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      card: { padding: spacing.xl, alignItems: 'center' },
+      cardCompact: { padding: spacing.lg },
+      iconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: colors.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+      },
+      emoji: { fontSize: 32 },
+      title: { fontWeight: '800', textTransform: 'uppercase', marginBottom: 4 },
+      subtitle: { textAlign: 'center', marginBottom: spacing.lg },
+      diffBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: colors.surface,
+        borderRadius: radii.pill,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.sm,
+        marginBottom: spacing.lg,
+        maxWidth: '100%',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+      },
+      monthsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        gap: spacing.sm,
+        minWidth: 0,
+      },
+      monthCol: { flex: 1, alignItems: 'center', minWidth: 0 },
+    })
+  );
 
   useEffect(() => {
     cardScale.value = withSpring(1, { damping: 12 });
@@ -102,7 +149,7 @@ export default function BalanceComparisonView({
   return (
     <Animated.View style={cardAnim}>
       <BrutalBox bg={cfg.bg} contentStyle={[styles.card, compact && styles.cardCompact]}>
-        <Animated.View style={[styles.iconCircle, brutalBorder(2), iconAnim]}>
+        <Animated.View style={[styles.iconCircle, brutalBorder(2, colors), iconAnim]}>
           <SText style={styles.emoji}>{cfg.emoji}</SText>
         </Animated.View>
 
@@ -113,7 +160,7 @@ export default function BalanceComparisonView({
           {cfg.subtitle}
         </SText>
 
-        <View style={[styles.diffBox, brutalBorder(2)]}>
+        <View style={[styles.diffBox, brutalBorder(2, colors)]}>
           <Ionicons name={cfg.icon} size={22} color={cfg.accent} style={{ flexShrink: 0 }} />
           <SText
             variant="title3"
@@ -155,42 +202,3 @@ export default function BalanceComparisonView({
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: { padding: spacing.xl, alignItems: 'center' },
-  cardCompact: { padding: spacing.lg },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  emoji: { fontSize: 32 },
-  title: { fontWeight: '800', textTransform: 'uppercase', marginBottom: 4 },
-  subtitle: { textAlign: 'center', marginBottom: spacing.lg },
-  diffBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.lg,
-    maxWidth: '100%',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  monthsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    gap: spacing.sm,
-    minWidth: 0,
-  },
-  monthCol: { flex: 1, alignItems: 'center', minWidth: 0 },
-});

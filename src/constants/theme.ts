@@ -1,27 +1,8 @@
-import { Platform, ViewStyle } from 'react-native';
+import { Platform, ViewStyle, TextStyle } from 'react-native';
+import { lightColors, type ThemeColors } from '@/src/constants/colors';
 
-export const colors = {
-  bg: '#F5F0E8',
-  bgAlt: '#EDE6DA',
-  surface: '#FFFFFF',
-  surfaceAlt: '#FFF9E6',
-  ink: '#000000',
-  yellow: '#FFE566',
-  yellowDark: '#FFD93D',
-  pink: '#FF6B8A',
-  pinkLight: '#FFB3C6',
-  income: '#4ADE80',
-  incomeBg: '#DCFCE7',
-  expense: '#FF4757',
-  expenseBg: '#FFE0E3',
-  warning: '#FFB800',
-  text: '#000000',
-  textSecondary: '#333333',
-  textMuted: '#666666',
-  error: '#FF4757',
-  errorBg: '#FFE0E3',
-  decorative: 'rgba(255,255,255,0.6)',
-} as const;
+/** @deprecated Usa useTheme().colors en componentes */
+export const colors = lightColors;
 
 export const brutal = {
   border: 3,
@@ -48,13 +29,18 @@ export const spacing = {
   xxxl: 32,
 } as const;
 
-/** Hard neo-brutalist shadow (no blur) */
-export function hardShadow(offset = brutal.shadowOffset): ViewStyle {
+export type BrutalBorderStyle = Pick<ViewStyle, 'borderWidth' | 'borderColor'>;
+
+/** Quita el outline azul de inputs en web sin romper tipos de TextInput */
+export const webTextInputReset: TextStyle =
+  Platform.OS === 'web' ? ({ outlineStyle: 'none' } as unknown as TextStyle) : {};
+
+export function hardShadow(offset = brutal.shadowOffset, palette: ThemeColors = lightColors): ViewStyle {
   if (Platform.OS === 'web') {
-    return { boxShadow: `${offset}px ${offset}px 0 0 ${colors.ink}` } as ViewStyle;
+    return { boxShadow: `${offset}px ${offset}px 0 0 ${palette.shadow}` } as ViewStyle;
   }
   return {
-    shadowColor: colors.ink,
+    shadowColor: palette.shadow,
     shadowOffset: { width: offset, height: offset },
     shadowOpacity: 1,
     shadowRadius: 0,
@@ -62,6 +48,6 @@ export function hardShadow(offset = brutal.shadowOffset): ViewStyle {
   };
 }
 
-export function brutalBorder(width = brutal.border): ViewStyle {
-  return { borderWidth: width, borderColor: colors.ink };
+export function brutalBorder(width: number = brutal.border, palette: ThemeColors = lightColors): BrutalBorderStyle {
+  return { borderWidth: width, borderColor: palette.ink };
 }

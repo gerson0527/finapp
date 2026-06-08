@@ -13,9 +13,11 @@ import TransactionForm from '@/src/components/TransactionForm';
 import TransactionReadOnlyView from '@/src/components/TransactionReadOnlyView';
 import { isEditableTransaction } from '@/lib/transactionHelpers';
 import SText from '@/src/components/SText';
-import { colors, spacing } from '@/src/constants/theme';
+import { spacing } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export default function EditTransactionScreen() {
+  const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { triggerRefresh } = useApp();

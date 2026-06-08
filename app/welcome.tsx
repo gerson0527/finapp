@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +11,9 @@ import BrutalButton from '@/src/components/BrutalButton';
 import HighlightText from '@/src/components/HighlightText';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -31,7 +33,6 @@ function getDisplayName(session: ReturnType<typeof useAuth>['session']): string 
   return part.charAt(0).toUpperCase() + part.slice(1);
 }
 
-/** Nombre corto para el saludo en pantallas estrechas. */
 function formatWelcomeName(raw: string): string {
   const withoutDigits = raw.replace(/\d+/g, ' ').trim().split(/\s+/)[0] ?? raw;
   const name = withoutDigits.length >= 2 ? withoutDigits : raw;
@@ -50,10 +51,81 @@ export default function WelcomeScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const router = useRouter();
   const { session, completeWelcome } = useAuth();
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      root: {
+        flex: 1,
+        justifyContent: 'space-between',
+      },
+      heroZone: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: 0,
+      },
+      hero: {
+        alignItems: 'center',
+      },
+      logo: {
+        borderRadius: radii.lg,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      intro: {
+        width: '100%',
+        alignItems: 'center',
+      },
+      greeting: {
+        fontWeight: '800',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        marginBottom: spacing.xs,
+        textAlign: 'center',
+      },
+      subtitle: {
+        marginTop: spacing.md,
+        lineHeight: 22,
+        textAlign: 'center',
+        paddingHorizontal: spacing.sm,
+      },
+      tips: {
+        gap: spacing.sm,
+        width: '100%',
+        flexShrink: 0,
+        marginVertical: spacing.sm,
+      },
+      tipRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        padding: spacing.md,
+      },
+      tipRowTiny: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        gap: spacing.sm,
+      },
+      tipIcon: {
+        borderRadius: radii.sm,
+        backgroundColor: colors.yellow,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+      },
+      footer: {
+        flexShrink: 0,
+        paddingTop: spacing.xs,
+      },
+    })
+  );
 
   const greeting = useMemo(() => getGreeting(), []);
   const name = useMemo(() => formatWelcomeName(getDisplayName(session)), [session]);
-  const compact = windowHeight < 700;
+
+  const tiny = windowHeight < 620;
+  const compact = windowHeight < 720;
 
   const scale = useSharedValue(0.9);
   React.useEffect(() => {
@@ -66,136 +138,83 @@ export default function WelcomeScreen() {
     router.replace('/(tabs)');
   }
 
-  const bottomPad = Math.max(insets.bottom, spacing.lg);
+  const logoSize = tiny ? 72 : compact ? 84 : 96;
+  const iconSize = tiny ? 34 : compact ? 42 : 48;
+  const tipIconSize = tiny ? 34 : 40;
+  const bottomPad = Math.max(insets.bottom, spacing.sm);
 
   return (
     <BrutalScreen>
-      <View style={styles.root}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingTop: spacing.xl,
-              minHeight: windowHeight - insets.top - bottomPad - 72,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.heroBlock}>
-            <Animated.View style={[styles.hero, heroAnim]}>
-              <BrutalBox bg={colors.yellow} shadow={6} contentStyle={styles.logo}>
-                <Ionicons name="sparkles" size={compact ? 40 : 48} color={colors.ink} />
-              </BrutalBox>
-            </Animated.View>
+      <View
+        style={[
+          styles.root,
+          {
+            paddingTop: tiny ? spacing.sm : spacing.md,
+            paddingBottom: bottomPad,
+            paddingHorizontal: spacing.xl,
+          },
+        ]}
+      >
+        <View style={styles.heroZone}>
+          <Animated.View style={[styles.hero, heroAnim, { marginBottom: tiny ? spacing.md : spacing.lg }]}>
+            <BrutalBox
+              bg={colors.yellow}
+              shadow={6}
+              contentStyle={[styles.logo, { width: logoSize, height: logoSize }]}
+            >
+              <Ionicons name="sparkles" size={iconSize} color={colors.ink} />
+            </BrutalBox>
+          </Animated.View>
 
-            <FadeInView index={1} style={styles.intro}>
-              <SText variant="footnote" color={colors.textMuted} style={styles.greeting}>
-                {greeting}
-              </SText>
-              <HighlightText variant={compact ? 'title2' : 'title1'} centered>
-                ¡Hola, {name}!
-              </HighlightText>
-              <SText variant="body" color={colors.textSecondary} style={styles.subtitle}>
-                Qué bueno verte de nuevo. Tu resumen del mes te espera: gastos, presupuestos y metas.
-              </SText>
-            </FadeInView>
-          </View>
-
-          <FadeInView index={2} style={styles.tips}>
-            {TIPS.map((tip) => (
-              <BrutalBox key={tip.text} bg={colors.surfaceAlt} shadow={3} contentStyle={styles.tipRow}>
-                <View style={[styles.tipIcon, brutalBorder()]}>
-                  <Ionicons name={tip.icon} size={18} color={colors.ink} />
-                </View>
-                <SText variant="footnote" style={{ fontWeight: '700', flex: 1 }}>
-                  {tip.text}
-                </SText>
-              </BrutalBox>
-            ))}
-          </FadeInView>
-        </ScrollView>
-
-        <View style={[styles.footer, { paddingBottom: bottomPad, paddingHorizontal: spacing.xl }]}>
-          <FadeInView index={3}>
-            <BrutalButton label="Empezar" onPress={handleContinue} />
+          <FadeInView index={1} style={styles.intro}>
+            <SText variant="caption2" color={colors.textMuted} style={styles.greeting}>
+              {greeting}
+            </SText>
+            <HighlightText variant={tiny ? 'title3' : compact ? 'title2' : 'title1'} centered>
+              ¡Hola, {name}!
+            </HighlightText>
+            <SText
+              variant={tiny ? 'footnote' : 'body'}
+              color={colors.textSecondary}
+              style={[styles.subtitle, tiny && { lineHeight: 18, marginTop: spacing.sm }]}
+            >
+              Qué bueno verte de nuevo. Tu resumen del mes te espera: gastos, presupuestos y metas.
+            </SText>
           </FadeInView>
         </View>
+
+        <FadeInView index={2} style={[styles.tips, tiny && { gap: 6 }]}>
+          {TIPS.map((tip) => (
+            <BrutalBox
+              key={tip.text}
+              bg={colors.surfaceAlt}
+              shadow={3}
+              contentStyle={[styles.tipRow, tiny && styles.tipRowTiny]}
+            >
+              <View
+                style={[
+                  styles.tipIcon,
+                  brutalBorder(undefined, colors),
+                  { width: tipIconSize, height: tipIconSize },
+                ]}
+              >
+                <Ionicons name={tip.icon} size={tiny ? 16 : 18} color={colors.ink} />
+              </View>
+              <SText
+                variant={tiny ? 'caption2' : 'footnote'}
+                style={{ fontWeight: '700', flex: 1 }}
+                numberOfLines={2}
+              >
+                {tip.text}
+              </SText>
+            </BrutalBox>
+          ))}
+        </FadeInView>
+
+        <FadeInView index={3} style={styles.footer}>
+          <BrutalButton label="Empezar" onPress={handleContinue} />
+        </FadeInView>
       </View>
     </BrutalScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    justifyContent: 'space-between',
-  },
-  heroBlock: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: spacing.xxl,
-    minHeight: 220,
-  },
-  hero: {
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  logo: {
-    width: 96,
-    height: 96,
-    borderRadius: radii.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  intro: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  greeting: {
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  subtitle: {
-    marginTop: spacing.md,
-    lineHeight: 24,
-    textAlign: 'center',
-  },
-  tips: {
-    gap: spacing.sm,
-    width: '100%',
-    paddingBottom: spacing.lg,
-  },
-  tipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-  },
-  tipIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    backgroundColor: colors.yellow,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  footer: {
-    paddingTop: spacing.md,
-    borderTopWidth: 0,
-  },
-});

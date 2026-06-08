@@ -8,7 +8,9 @@ import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import SText from '@/src/components/SText';
 import AuthFeedback from '@/src/components/AuthFeedback';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 interface ConfirmModalProps {
   visible: boolean;
@@ -36,6 +38,34 @@ export default function ConfirmModal({
   onCancel,
 }: ConfirmModalProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.lg,
+      },
+      wrap: { width: '100%' },
+      content: { padding: spacing.lg },
+      header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        marginBottom: spacing.md,
+      },
+      icon: {
+        width: 44,
+        height: 44,
+        borderRadius: radii.sm,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+      },
+      cancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
+    })
+  );
   const bg = variant === 'danger' ? colors.expenseBg : colors.surfaceAlt;
 
   return (
@@ -44,7 +74,7 @@ export default function ConfirmModal({
         <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.wrap}>
           <BrutalBox bg={bg} shadow={5} contentStyle={styles.content}>
             <View style={styles.header}>
-              <View style={[styles.icon, brutalBorder(), { backgroundColor: colors.surface }]}>
+              <View style={[styles.icon, brutalBorder(undefined, colors), { backgroundColor: colors.surface }]}>
                 <Ionicons
                   name={variant === 'danger' ? 'trash-outline' : 'help-circle-outline'}
                   size={22}
@@ -77,29 +107,3 @@ export default function ConfirmModal({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  wrap: { width: '100%' },
-  content: { padding: spacing.lg },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  icon: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-  cancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
-});

@@ -1,10 +1,10 @@
 import React, { ReactNode } from 'react';
-import { StyleProp, TextStyle, View, ViewStyle } from 'react-native';
+import { StyleProp, TextStyle, View } from 'react-native';
 import SText from '@/src/components/SText';
-import { colors } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 interface HighlightTextProps {
-  children: string;
+  children: ReactNode;
   variant?: 'title1' | 'title2' | 'title3' | 'headline';
   style?: StyleProp<TextStyle>;
   highlightColor?: string;
@@ -15,9 +15,12 @@ export default function HighlightText({
   children,
   variant = 'title2',
   style,
-  highlightColor = colors.yellow,
+  highlightColor,
   centered = false,
 }: HighlightTextProps) {
+  const { colors } = useTheme();
+  const highlight = highlightColor ?? colors.yellow;
+
   return (
     <View style={{ alignSelf: centered ? 'center' : 'flex-start' }}>
       <View
@@ -27,7 +30,7 @@ export default function HighlightText({
           right: -4,
           bottom: variant === 'title1' ? 6 : 4,
           height: variant === 'title1' ? 16 : 12,
-          backgroundColor: highlightColor,
+          backgroundColor: highlight,
           zIndex: 0,
         }}
       />

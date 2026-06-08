@@ -13,7 +13,8 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <title>FinApp - Finanzas Personales</title>
-        <meta name="theme-color" content="#AAFF00" />
+        <meta name="theme-color" content="#F5F0E8" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#0D0D14" media="(prefers-color-scheme: dark)" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="FinApp" />

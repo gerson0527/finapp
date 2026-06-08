@@ -6,15 +6,17 @@ import { checkBudgetAlertsAfterExpense } from '@/services/notificationService';
 import { useApp } from '@/src/context/AppContext';
 import BrutalScreen from '@/src/components/BrutalScreen';
 import TransactionForm from '@/src/components/TransactionForm';
-import { colors, spacing } from '@/src/constants/theme';
+import { spacing } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 export default function AddTransactionScreen() {
+  const { colors } = useTheme();
   const router = useRouter();
   const { triggerRefresh } = useApp();
 
   return (
     <BrutalScreen showDecor={false}>
-      <View style={styles.handle} />
+      <View style={[styles.handle, { backgroundColor: colors.ink }]} />
       <TransactionForm
         title="Nueva transacción"
         submitLabel="Guardar"
@@ -44,7 +46,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 5,
     borderRadius: 3,
-    backgroundColor: colors.ink,
     alignSelf: 'center',
     marginTop: 8,
   },

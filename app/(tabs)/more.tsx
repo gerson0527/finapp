@@ -11,7 +11,11 @@ import BrutalScreen from '@/src/components/BrutalScreen';
 import HighlightText from '@/src/components/HighlightText';
 import BrutalBox from '@/src/components/BrutalBox';
 import ExportModal from '@/src/components/ExportModal';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import type { ThemeColors } from '@/src/constants/colors';
+import type { ThemeMode } from '@/src/constants/colors';
 
 type MenuItem = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -40,17 +44,21 @@ function MenuRow({
   item,
   onPress,
   disabled,
+  colors,
+  styles,
 }: {
   item: MenuItem;
   onPress?: () => void;
   disabled?: boolean;
+  colors: ThemeColors;
+  styles: Record<string, object>;
 }) {
   return (
     <AnimatedPressable
       style={[styles.menuItem, disabled && styles.menuItemDisabled]}
       onPress={disabled ? undefined : onPress}
     >
-      <View style={[styles.menuIcon, brutalBorder(2), { backgroundColor: item.iconBg }]}>
+      <View style={[styles.menuIcon, brutalBorder(2, colors), { backgroundColor: item.iconBg }]}>
         <Ionicons name={item.icon} size={20} color={colors.ink} />
       </View>
       <View style={styles.menuText}>
@@ -60,11 +68,11 @@ function MenuRow({
         </SText>
       </View>
       {disabled ? (
-        <View style={[styles.soonBadge, brutalBorder(2)]}>
+        <View style={[styles.soonBadge, brutalBorder(2, colors)]}>
           <SText variant="caption2" style={{ fontWeight: '800' }}>Pronto</SText>
         </View>
       ) : (
-        <View style={[styles.chevron, brutalBorder(2)]}>
+        <View style={[styles.chevron, brutalBorder(2, colors)]}>
           <Ionicons name="chevron-forward" size={16} color={colors.ink} />
         </View>
       )}
@@ -72,7 +80,159 @@ function MenuRow({
   );
 }
 
+const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { mode: 'light', label: 'Claro', icon: 'sunny-outline' },
+  { mode: 'dark', label: 'Oscuro', icon: 'moon-outline' },
+  { mode: 'system', label: 'Sistema', icon: 'phone-portrait-outline' },
+];
+
 export default function MoreScreen() {
+  const { colors, mode, setMode } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    scroll: { flex: 1 },
+    scrollContent: {
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.sm,
+      paddingBottom: 120,
+    },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: spacing.xl,
+    },
+    profileCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.lg,
+      gap: 14,
+      marginBottom: spacing.xxl,
+    },
+    profileAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    profileInfo: {
+      flex: 1,
+      gap: 8,
+    },
+    planBadge: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
+    },
+    sectionHeader: {
+      marginBottom: spacing.sm,
+    },
+    sectionLabel: {
+      fontWeight: '800',
+      letterSpacing: 1,
+    },
+    menuCard: {
+      overflow: 'hidden',
+      marginBottom: spacing.xxl,
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      gap: 14,
+    },
+    menuItemDisabled: {
+      opacity: 0.85,
+    },
+    menuDivider: {
+      height: 2,
+      backgroundColor: colors.bgAlt,
+      marginHorizontal: spacing.lg,
+    },
+    menuIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    menuText: {
+      flex: 1,
+    },
+    chevron: {
+      width: 28,
+      height: 28,
+      borderRadius: radii.sm,
+      backgroundColor: colors.bgAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    soonBadge: {
+      backgroundColor: colors.surfaceAlt,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
+    },
+    logoutBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg,
+      gap: 10,
+      marginBottom: spacing.xxl,
+    },
+    logoutIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.sm,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    logoutLabel: {
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    versionBox: {
+      alignSelf: 'center',
+    },
+    versionContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+    },
+    themeRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      padding: spacing.lg,
+    },
+    themeChip: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surfaceAlt,
+    },
+    themeChipActive: {
+      backgroundColor: colors.yellow,
+    },
+  })
+    );
   const router = useRouter();
   const { session } = useAuth();
   const [exportVisible, setExportVisible] = useState(false);
@@ -193,7 +353,7 @@ export default function MoreScreen() {
         <FadeInView index={1}>
           <AnimatedPressable onPress={() => router.push('/settings/profile' as any)}>
             <BrutalBox bg={colors.yellow} shadow={4} contentStyle={styles.profileCard}>
-              <View style={[styles.profileAvatar, brutalBorder(2)]}>
+              <View style={[styles.profileAvatar, brutalBorder(2, colors)]}>
                 <SText variant="title3" style={{ fontWeight: '900' }}>{initials}</SText>
               </View>
               <View style={styles.profileInfo}>
@@ -205,17 +365,52 @@ export default function MoreScreen() {
                     {email}
                   </SText>
                 ) : null}
-                <View style={[styles.planBadge, brutalBorder(2)]}>
+                <View style={[styles.planBadge, brutalBorder(2, colors)]}>
                   <Ionicons name="sparkles" size={12} color={colors.ink} />
                   <SText variant="caption2" style={{ fontWeight: '800' }}>Plan gratuito</SText>
                 </View>
               </View>
-              <View style={[styles.chevron, brutalBorder(2)]}>
+              <View style={[styles.chevron, brutalBorder(2, colors)]}>
                 <Ionicons name="chevron-forward" size={16} color={colors.ink} />
               </View>
             </BrutalBox>
           </AnimatedPressable>
         </FadeInView>
+
+        <View style={{ marginBottom: spacing.xxl }}>
+          <View style={styles.sectionHeader}>
+            <SText variant="caption1" color={colors.textMuted} style={styles.sectionLabel}>
+              TEMA DE LA APP
+            </SText>
+            <SText variant="caption2" color={colors.textMuted} style={{ marginTop: 4 }}>
+              Claro, oscuro o según tu teléfono. Se guarda automáticamente.
+            </SText>
+          </View>
+          <BrutalBox bg={colors.surfaceAlt} shadow={4} contentStyle={styles.menuCard}>
+            <View style={styles.themeRow}>
+              {THEME_OPTIONS.map((opt) => {
+                const selected = mode === opt.mode;
+                return (
+                  <AnimatedPressable
+                    key={opt.mode}
+                    style={[
+                      styles.themeChip,
+                      brutalBorder(2, colors),
+                      { backgroundColor: selected ? colors.yellow : colors.surface },
+                    ]}
+                    onPress={() => setMode(opt.mode)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Tema ${opt.label}`}
+                  >
+                    <Ionicons name={opt.icon} size={18} color={colors.ink} />
+                    <SText variant="caption2" style={{ fontWeight: '800' }}>{opt.label}</SText>
+                  </AnimatedPressable>
+                );
+              })}
+            </View>
+          </BrutalBox>
+        </View>
 
         <FadeInView index={2}>
           <View style={styles.sectionHeader}>
@@ -228,6 +423,8 @@ export default function MoreScreen() {
               <View key={item.label}>
                 <MenuRow
                   item={item}
+                  colors={colors}
+                  styles={styles}
                   onPress={() => router.push(item.route as any)}
                 />
                 {index < accountItems.length - 1 ? <View style={styles.menuDivider} /> : null}
@@ -247,6 +444,8 @@ export default function MoreScreen() {
               <View key={item.label}>
                 <MenuRow
                   item={item}
+                  colors={colors}
+                  styles={styles}
                   disabled={!item.route}
                   onPress={
                     item.route === 'export'
@@ -270,7 +469,7 @@ export default function MoreScreen() {
           </View>
           <AnimatedPressable onPress={handleLogout}>
             <BrutalBox bg={colors.expenseBg} shadow={4} contentStyle={styles.logoutBtn}>
-              <View style={[styles.logoutIcon, brutalBorder(2)]}>
+              <View style={[styles.logoutIcon, brutalBorder(2, colors)]}>
                 <Ionicons name="log-out-outline" size={20} color={colors.expense} />
               </View>
               <SText variant="headline" color={colors.expense} style={styles.logoutLabel}>
@@ -300,126 +499,3 @@ export default function MoreScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: 120,
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.xl,
-  },
-  profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.lg,
-    gap: 14,
-    marginBottom: spacing.xxl,
-  },
-  profileAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileInfo: {
-    flex: 1,
-    gap: 8,
-  },
-  planBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-  },
-  sectionHeader: {
-    marginBottom: spacing.sm,
-  },
-  sectionLabel: {
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  menuCard: {
-    overflow: 'hidden',
-    marginBottom: spacing.xxl,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    gap: 14,
-  },
-  menuItemDisabled: {
-    opacity: 0.85,
-  },
-  menuDivider: {
-    height: 2,
-    backgroundColor: colors.bgAlt,
-    marginHorizontal: spacing.lg,
-  },
-  menuIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  menuText: {
-    flex: 1,
-  },
-  chevron: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bgAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  soonBadge: {
-    backgroundColor: colors.surfaceAlt,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    gap: 10,
-    marginBottom: spacing.xxl,
-  },
-  logoutIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logoutLabel: {
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  versionBox: {
-    alignSelf: 'center',
-  },
-  versionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-});

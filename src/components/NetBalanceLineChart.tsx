@@ -5,7 +5,8 @@ import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import SText from '@/src/components/SText';
 import { formatMonthLabel } from '@/lib/month';
 import { formatCOP } from '@/src/utils/currency';
-import { colors, spacing } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { spacing } from '@/src/constants/theme';
 import type { NetBalanceByMonth } from '@/services/analyticsService';
 
 interface NetBalanceLineChartProps {
@@ -14,6 +15,7 @@ interface NetBalanceLineChartProps {
 }
 
 export default function NetBalanceLineChart({ data, height = 140 }: NetBalanceLineChartProps) {
+  const { colors } = useTheme();
   const width = useChartWidth(8);
   const values = data.map((d) => d.net);
   const maxAbs = Math.max(...values.map(Math.abs), 1);

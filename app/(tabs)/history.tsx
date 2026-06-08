@@ -17,7 +17,10 @@ import HighlightText from '@/src/components/HighlightText';
 import BrutalBox from '@/src/components/BrutalBox';
 import { formatCOP } from '@/src/utils/currency';
 import { isEditableTransaction } from '@/lib/transactionHelpers';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import type { ThemeColors } from '@/src/constants/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { parseISO, isToday, isYesterday, format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -33,10 +36,14 @@ function SummaryPill({
   label,
   value,
   tone,
+  colors,
+  styles,
 }: {
   label: string;
   value: string;
   tone: 'income' | 'expense' | 'neutral';
+  colors: ThemeColors;
+  styles: Record<string, object>;
 }) {
   const bg =
     tone === 'income' ? colors.incomeBg
@@ -55,6 +62,82 @@ function SummaryPill({
 }
 
 export default function HistoryScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    scroll: { flex: 1, zIndex: 1 },
+    scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    filterBadge: {
+      backgroundColor: colors.pink,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: radii.pill,
+    },
+    summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+    summaryPill: { padding: spacing.md, minWidth: 0 },
+    summaryLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
+    searchRow: { flexDirection: 'row', gap: 10, marginBottom: spacing.lg },
+    searchInput: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: 14,
+      height: 48,
+      gap: 8,
+    },
+    input: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '500' },
+    filterBtn: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center' },
+    groupHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    groupTitle: { fontWeight: '800', textTransform: 'uppercase' },
+    sectionCard: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, marginBottom: spacing.lg },
+    divider: { height: 2, backgroundColor: colors.bgAlt },
+    emptyState: { padding: spacing.xxxl, alignItems: 'center' },
+    emptyIcon: {
+      width: 56,
+      height: 56,
+      borderRadius: radii.md,
+      backgroundColor: colors.bgAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyBtn: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    modalWrap: { padding: spacing.xl },
+    modalContent: { padding: spacing.xl },
+    fieldLabel: { marginBottom: spacing.sm, textTransform: 'uppercase', fontWeight: '600' },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+    },
+    chipActive: { backgroundColor: colors.yellow },
+    modalActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm, alignItems: 'center' },
+    modalSecondary: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 14,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+    },
+    modalDone: { paddingVertical: 14, alignItems: 'center' },
+  })
+    );
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { refreshKey } = useApp();
@@ -141,7 +224,7 @@ export default function HistoryScreen() {
               </SText>
             </View>
             {hasActiveFilters ? (
-              <View style={[styles.filterBadge, brutalBorder(2)]}>
+              <View style={[styles.filterBadge, brutalBorder(2, colors)]}>
                 <SText variant="caption2" style={{ fontWeight: '800' }}>Filtrado</SText>
               </View>
             ) : null}
@@ -151,12 +234,14 @@ export default function HistoryScreen() {
         {!loading && filtered.length > 0 ? (
           <FadeInView index={1}>
             <View style={styles.summaryRow}>
-              <SummaryPill label="INGRESOS" value={`+${formatCOP(summary.income)}`} tone="income" />
-              <SummaryPill label="GASTOS" value={`-${formatCOP(summary.expenses)}`} tone="expense" />
+              <SummaryPill label="INGRESOS" value={`+${formatCOP(summary.income)}`} tone="income" colors={colors} styles={styles} />
+              <SummaryPill label="GASTOS" value={`-${formatCOP(summary.expenses)}`} tone="expense" colors={colors} styles={styles} />
               <SummaryPill
                 label="NETO"
                 value={`${summary.net >= 0 ? '+' : ''}${formatCOP(summary.net)}`}
                 tone="neutral"
+                colors={colors}
+                styles={styles}
               />
             </View>
           </FadeInView>
@@ -164,7 +249,7 @@ export default function HistoryScreen() {
 
         <FadeInView index={2}>
           <View style={styles.searchRow}>
-            <View style={[styles.searchInput, brutalBorder(2)]}>
+            <View style={[styles.searchInput, brutalBorder(2, colors)]}>
               <Ionicons name="search" size={18} color={colors.ink} />
               <TextInput
                 style={styles.input}
@@ -192,7 +277,7 @@ export default function HistoryScreen() {
         ) : groupKeys.length === 0 ? (
           <FadeInView index={3}>
             <BrutalBox contentStyle={styles.emptyState}>
-              <View style={[styles.emptyIcon, brutalBorder(2)]}>
+              <View style={[styles.emptyIcon, brutalBorder(2, colors)]}>
                 <Ionicons name="receipt-outline" size={32} color={colors.textMuted} />
               </View>
               <SText variant="body" style={{ fontWeight: '800', marginTop: spacing.md }}>
@@ -265,7 +350,7 @@ export default function HistoryScreen() {
                     {monthOptions.map((m) => (
                       <AnimatedPressable
                         key={m.value}
-                        style={[styles.chip, brutalBorder(2), historyMonth === m.value && styles.chipActive]}
+                        style={[styles.chip, brutalBorder(2, colors), historyMonth === m.value && styles.chipActive]}
                         onPress={() => setHistoryMonth(m.value)}
                       >
                         <SText variant="caption2" style={{ fontWeight: '800' }}>{m.label}</SText>
@@ -283,7 +368,7 @@ export default function HistoryScreen() {
                   ]).map((opt) => (
                     <AnimatedPressable
                       key={opt.label}
-                      style={[styles.chip, brutalBorder(2), typeFilter === opt.value && styles.chipActive]}
+                      style={[styles.chip, brutalBorder(2, colors), typeFilter === opt.value && styles.chipActive]}
                       onPress={() => setTypeFilter(opt.value)}
                     >
                       <SText variant="caption2" style={{ fontWeight: '800' }}>{opt.label}</SText>
@@ -295,7 +380,7 @@ export default function HistoryScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.md }}>
                   <View style={styles.chipRow}>
                     <AnimatedPressable
-                      style={[styles.chip, brutalBorder(2), !catFilter && styles.chipActive]}
+                      style={[styles.chip, brutalBorder(2, colors), !catFilter && styles.chipActive]}
                       onPress={() => setCatFilter(null)}
                     >
                       <SText variant="caption2" style={{ fontWeight: '800' }}>Todas</SText>
@@ -303,7 +388,7 @@ export default function HistoryScreen() {
                     {categories.map((c) => (
                       <AnimatedPressable
                         key={c.id}
-                        style={[styles.chip, brutalBorder(2), catFilter === c.name && styles.chipActive]}
+                        style={[styles.chip, brutalBorder(2, colors), catFilter === c.name && styles.chipActive]}
                         onPress={() => setCatFilter(catFilter === c.name ? null : c.name)}
                       >
                         <SText variant="caption2" style={{ fontWeight: '800' }}>{c.name}</SText>
@@ -314,7 +399,7 @@ export default function HistoryScreen() {
 
                 <View style={styles.modalActions}>
                   {hasActiveFilters ? (
-                    <AnimatedPressable style={[styles.modalSecondary, brutalBorder(2)]} onPress={clearFilters}>
+                    <AnimatedPressable style={[styles.modalSecondary, brutalBorder(2, colors)]} onPress={clearFilters}>
                       <SText variant="callout" style={{ fontWeight: '700' }}>Limpiar</SText>
                     </AnimatedPressable>
                   ) : null}
@@ -335,75 +420,3 @@ export default function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, zIndex: 1 },
-  scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  filterBadge: {
-    backgroundColor: colors.pink,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-  },
-  summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  summaryPill: { padding: spacing.md, minWidth: 0 },
-  summaryLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
-  searchRow: { flexDirection: 'row', gap: 10, marginBottom: spacing.lg },
-  searchInput: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: 14,
-    height: 48,
-    gap: 8,
-  },
-  input: { flex: 1, color: colors.ink, fontSize: 15, fontWeight: '500' },
-  filterBtn: { width: 48, height: 48, justifyContent: 'center', alignItems: 'center' },
-  groupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  groupTitle: { fontWeight: '800', textTransform: 'uppercase' },
-  sectionCard: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, marginBottom: spacing.lg },
-  divider: { height: 2, backgroundColor: colors.bgAlt },
-  emptyState: { padding: spacing.xxxl, alignItems: 'center' },
-  emptyIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.md,
-    backgroundColor: colors.bgAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyBtn: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalWrap: { padding: spacing.xl },
-  modalContent: { padding: spacing.xl },
-  fieldLabel: { marginBottom: spacing.sm, textTransform: 'uppercase', fontWeight: '600' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-  },
-  chipActive: { backgroundColor: colors.yellow },
-  modalActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm, alignItems: 'center' },
-  modalSecondary: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-  },
-  modalDone: { paddingVertical: 14, alignItems: 'center' },
-});

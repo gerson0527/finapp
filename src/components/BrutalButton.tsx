@@ -4,7 +4,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import * as Haptics from 'expo-haptics';
 import BrutalBox from '@/src/components/BrutalBox';
 import SText from '@/src/components/SText';
-import { colors, brutal, radii } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { brutal, radii } from '@/src/constants/theme';
 
 interface BrutalButtonProps {
   label: string;
@@ -23,6 +24,7 @@ export default function BrutalButton({
   disabled = false,
   small = false,
 }: BrutalButtonProps) {
+  const { colors } = useTheme();
   const press = useSharedValue(0);
 
   const animStyle = useAnimatedStyle(() => ({

@@ -7,7 +7,8 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
-import { colors, radii } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { radii } from '@/src/constants/theme';
 import BrutalBox from '@/src/components/BrutalBox';
 
 interface SkeletonLoaderProps {
@@ -15,6 +16,7 @@ interface SkeletonLoaderProps {
 }
 
 function SkeletonBlock({ style }: { style: object }) {
+  const { colors } = useTheme();
   const shimmer = useSharedValue(0.4);
 
   useEffect(() => {
@@ -28,9 +30,14 @@ function SkeletonBlock({ style }: { style: object }) {
   const animatedStyle = useAnimatedStyle(() => ({ opacity: shimmer.value }));
 
   return (
-    <Animated.View style={[style, styles.block, animatedStyle]} />
+    <Animated.View style={[style, { backgroundColor: colors.bgAlt }, animatedStyle]} />
   );
 }
+
+const styles = StyleSheet.create({
+  card: { padding: 16, marginBottom: 12 },
+  listItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+});
 
 export default function SkeletonLoader({ variant = 'text' }: SkeletonLoaderProps) {
   if (variant === 'card') {
@@ -63,9 +70,3 @@ export default function SkeletonLoader({ variant = 'text' }: SkeletonLoaderProps
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  block: { backgroundColor: colors.bgAlt },
-  card: { padding: 16, marginBottom: 12 },
-  listItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
-});

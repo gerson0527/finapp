@@ -23,7 +23,9 @@ import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import HighlightText from '@/src/components/HighlightText';
 import BalanceComparisonView from '@/src/components/BalanceComparisonView';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder, webTextInputReset } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 import { copDigitsToNumber, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 
 interface MonthlyBalanceGateProps {
@@ -31,6 +33,44 @@ interface MonthlyBalanceGateProps {
 }
 
 export default function MonthlyBalanceGate({ children }: MonthlyBalanceGateProps) {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.bg,
+      justifyContent: 'center',
+      paddingHorizontal: spacing.xl,
+    },
+    resultWrap: { alignItems: 'center', width: '100%' },
+    hero: { alignItems: 'center', marginBottom: spacing.xxl },
+    iconWrap: { width: 72, height: 72, justifyContent: 'center', alignItems: 'center' },
+    subtitle: { marginTop: 10, textAlign: 'center', lineHeight: 22, paddingHorizontal: spacing.md },
+    card: { padding: spacing.xl },
+    fieldLabel: { marginBottom: spacing.sm },
+    amountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.lg,
+      gap: 6,
+    },
+    amountInput: {
+      fontSize: 36,
+      fontWeight: '700',
+      color: colors.ink,
+      minWidth: 120,
+      textAlign: 'center',
+      ...webTextInputReset,
+    },
+    hint: { textAlign: 'center', marginTop: spacing.sm },
+    note: { textAlign: 'center', marginTop: spacing.md, marginBottom: spacing.xl, lineHeight: 18 },
+  })
+    );
   const { session, onboardingComplete } = useAuth();
   const { triggerRefresh } = useApp();
   const [month, setMonth] = useState(getCurrentMonth());
@@ -123,7 +163,7 @@ export default function MonthlyBalanceGate({ children }: MonthlyBalanceGateProps
   return (
     <>
       {children}
-      <Modal visible={showGate} animationType="fade" transparent={false} onRequestClose={() => {}}>
+      <Modal visible={showGate === true} animationType="fade" transparent={false} onRequestClose={() => {}}>
         <View style={styles.container}>
           {step === 'form' ? (
             <>
@@ -143,7 +183,7 @@ export default function MonthlyBalanceGate({ children }: MonthlyBalanceGateProps
                 <SText variant="label" color={colors.textMuted} style={styles.fieldLabel}>
                   BALANCE NETO MENSUAL (COP)
                 </SText>
-                <View style={[styles.amountRow, brutalBorder(2)]}>
+                <View style={[styles.amountRow, brutalBorder(2, colors)]}>
                   <SText variant="title2" style={{ fontWeight: '700' }}>$</SText>
                   <TextInput
                     style={styles.amountInput}
@@ -192,37 +232,3 @@ export default function MonthlyBalanceGate({ children }: MonthlyBalanceGateProps
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  resultWrap: { alignItems: 'center', width: '100%' },
-  hero: { alignItems: 'center', marginBottom: spacing.xxl },
-  iconWrap: { width: 72, height: 72, justifyContent: 'center', alignItems: 'center' },
-  subtitle: { marginTop: 10, textAlign: 'center', lineHeight: 22, paddingHorizontal: spacing.md },
-  card: { padding: spacing.xl },
-  fieldLabel: { marginBottom: spacing.sm },
-  amountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    gap: 6,
-  },
-  amountInput: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: colors.ink,
-    minWidth: 120,
-    textAlign: 'center',
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
-  },
-  hint: { textAlign: 'center', marginTop: spacing.sm },
-  note: { textAlign: 'center', marginTop: spacing.md, marginBottom: spacing.xl, lineHeight: 18 },
-});

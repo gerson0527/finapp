@@ -38,7 +38,10 @@ import AuthFeedback from '@/src/components/AuthFeedback';
 import ProgressBar from '@/src/components/ProgressBar';
 import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 import BalanceExceededAlert from '@/src/components/BalanceExceededAlert';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder, webTextInputReset } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import type { ThemeColors } from '@/src/constants/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function SummaryStat({
@@ -46,11 +49,15 @@ function SummaryStat({
   value,
   tone,
   icon,
+  colors,
+  styles,
 }: {
   label: string;
   value: string;
   tone: 'neutral' | 'spent' | 'ok' | 'warn';
   icon: keyof typeof Ionicons.glyphMap;
+  colors: ThemeColors;
+  styles: Record<string, object>;
 }) {
   const bg =
     tone === 'spent' ? colors.expenseBg
@@ -64,7 +71,7 @@ function SummaryStat({
 
   return (
     <BrutalBox bg={bg} radius={radii.md} shadow={3} style={{ flex: 1 }} contentStyle={styles.summaryStat}>
-      <View style={[styles.summaryIcon, brutalBorder(2), { backgroundColor: colors.surface }]}>
+      <View style={[styles.summaryIcon, brutalBorder(2, colors), { backgroundColor: colors.surface }]}>
         <Ionicons name={icon} size={16} color={fg} />
       </View>
       <SText variant="caption2" color={colors.textMuted} style={styles.summaryLabel}>{label}</SText>
@@ -76,6 +83,263 @@ function SummaryStat({
 }
 
 export default function BudgetsScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    scroll: { flex: 1, zIndex: 1 },
+    scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+    summaryStat: { padding: spacing.md, minWidth: 0 },
+    summaryIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    summaryLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
+    healthCard: { padding: spacing.lg, marginBottom: spacing.lg },
+    healthHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    healthBadge: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: radii.sm,
+    },
+    sectionTitle: { fontWeight: '800', textTransform: 'uppercase' },
+    listHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    countBadge: {
+      backgroundColor: colors.yellow,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
+    },
+    addMoreCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.lg,
+      marginTop: spacing.sm,
+    },
+    addMoreIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyHero: {
+      paddingVertical: spacing.xxxl,
+      paddingHorizontal: spacing.xl,
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    emptyHeroIcon: {
+      width: 72,
+      height: 72,
+      borderRadius: radii.lg,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    emptyHeroTitle: { fontWeight: '800', textAlign: 'center', marginBottom: spacing.sm },
+    emptyHeroText: { textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+    tipsCard: { padding: spacing.lg, marginBottom: spacing.lg },
+    tipsTitle: { fontWeight: '800', textTransform: 'uppercase', marginBottom: spacing.md },
+    tipRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
+    tipRowBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
+    tipIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.xl,
+    },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    modalKeyboard: { width: '100%' },
+    modalWrap: { padding: spacing.xl, paddingBottom: spacing.lg },
+    modalContent: { padding: spacing.xl },
+    payModalContent: { paddingTop: spacing.lg, overflow: 'visible' as const },
+    payModalAccent: {
+      position: 'absolute',
+      top: 0,
+      left: spacing.xl,
+      right: spacing.xl,
+      height: 6,
+      backgroundColor: colors.yellow,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      borderTopLeftRadius: radii.sm,
+      borderTopRightRadius: radii.sm,
+    },
+    payModalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      marginBottom: spacing.lg,
+      paddingTop: spacing.xs,
+    },
+    payCloseBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.sm,
+      backgroundColor: colors.bgAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    payModalScroll: { paddingBottom: spacing.sm },
+    modalHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
+    modalIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fieldLabel: { marginBottom: spacing.sm, marginTop: spacing.sm, textTransform: 'uppercase', fontWeight: '600' },
+    categoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    categoryChip: {
+      width: '31%',
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radii.md,
+      gap: 6,
+    },
+    chipIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    textInput: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 14,
+      color: colors.ink,
+      fontSize: 15,
+      marginBottom: spacing.sm,
+    },
+    inputWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 4,
+      marginBottom: spacing.lg,
+      gap: spacing.sm,
+    },
+    input: {
+      flex: 1,
+      color: colors.ink,
+      fontSize: 18,
+      fontWeight: '700',
+      paddingVertical: 12,
+    },
+    modalCancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
+    payStatsRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    payStatBox: { flex: 1, minWidth: 0 },
+    payStatInner: { padding: spacing.md },
+    payStatIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.xs,
+    },
+    payStatLabel: {
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+      marginBottom: 2,
+    },
+    payFieldLabel: {
+      marginBottom: spacing.sm,
+      textTransform: 'uppercase',
+      fontWeight: '700',
+      letterSpacing: 0.3,
+    },
+    payAmountCard: {
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+      alignItems: 'center',
+    },
+    payAmountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      width: '100%',
+      marginBottom: spacing.xs,
+    },
+    payInput: {
+      flex: 1,
+      maxWidth: 200,
+      color: colors.ink,
+      fontSize: 32,
+      fontWeight: '800',
+      paddingVertical: 8,
+      textAlign: 'center',
+      ...webTextInputReset,
+    },
+    quickFillChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      paddingHorizontal: spacing.lg,
+    },
+    payNoteInput: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 14,
+      color: colors.ink,
+      fontSize: 15,
+      marginBottom: spacing.md,
+    },
+  })
+    );
   const insets = useSafeAreaInsets();
   const { selectedMonth, triggerRefresh, refreshKey } = useApp();
   const budgets = useBudgets(selectedMonth);
@@ -372,7 +636,7 @@ export default function BudgetsScreen() {
         ) : budgets.data.length === 0 ? (
           <FadeInView index={1}>
             <BrutalBox bg={colors.yellow} radius={radii.xl} shadow={6} contentStyle={styles.emptyHero}>
-              <View style={[styles.emptyHeroIcon, brutalBorder(3)]}>
+              <View style={[styles.emptyHeroIcon, brutalBorder(3, colors)]}>
                 <Ionicons name="wallet" size={36} color={colors.ink} />
               </View>
               <SText variant="title3" style={styles.emptyHeroTitle}>
@@ -392,7 +656,7 @@ export default function BudgetsScreen() {
                 { icon: 'refresh' as const, text: 'Cada mes se reinician en cero (los ahorros no)' },
               ].map((tip, i) => (
                 <View key={tip.icon} style={[styles.tipRow, i > 0 && styles.tipRowBorder]}>
-                  <View style={[styles.tipIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                  <View style={[styles.tipIcon, brutalBorder(2, colors), { backgroundColor: colors.yellow }]}>
                     <Ionicons name={tip.icon} size={18} color={colors.ink} />
                   </View>
                   <SText variant="body" style={{ flex: 1, fontWeight: '600' }}>{tip.text}</SText>
@@ -416,18 +680,24 @@ export default function BudgetsScreen() {
                   value={formatCOP(summary.totalLimit)}
                   tone="neutral"
                   icon="pie-chart"
+                  colors={colors}
+                  styles={styles}
                 />
                 <SummaryStat
                   label="GASTADO"
                   value={formatCOP(summary.totalSpent)}
                   tone="spent"
                   icon="trending-down"
+                  colors={colors}
+                  styles={styles}
                 />
                 <SummaryStat
                   label="DISPONIBLE"
                   value={formatCOP(summary.remaining)}
                   tone="ok"
                   icon="checkmark-circle"
+                  colors={colors}
+                  styles={styles}
                 />
               </View>
             </FadeInView>
@@ -443,7 +713,7 @@ export default function BudgetsScreen() {
                         : 'Todo bajo control'}
                     </SText>
                   </View>
-                  <View style={[styles.healthBadge, brutalBorder(2), {
+                  <View style={[styles.healthBadge, brutalBorder(2, colors), {
                     backgroundColor: summary.health > 80 ? colors.expenseBg : colors.yellow,
                   }]}>
                     <SText variant="headline" style={{ fontWeight: '800' }}>{summary.health}%</SText>
@@ -460,7 +730,7 @@ export default function BudgetsScreen() {
             <FadeInView index={3}>
               <View style={styles.listHeader}>
                 <HighlightText variant="title3">Tus presupuestos</HighlightText>
-                <View style={[styles.countBadge, brutalBorder(2)]}>
+                <View style={[styles.countBadge, brutalBorder(2, colors)]}>
                   <SText variant="caption2" style={{ fontWeight: '800' }}>{budgets.data.length}</SText>
                 </View>
               </View>
@@ -480,7 +750,7 @@ export default function BudgetsScreen() {
             <FadeInView index={budgets.data.length + 5}>
               <AnimatedPressable onPress={() => openModal()}>
                 <BrutalBox bg={colors.surfaceAlt} radius={radii.lg} shadow={3} contentStyle={styles.addMoreCard}>
-                  <View style={[styles.addMoreIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                  <View style={[styles.addMoreIcon, brutalBorder(2, colors), { backgroundColor: colors.yellow }]}>
                     <Ionicons name="add" size={22} color={colors.ink} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -505,7 +775,7 @@ export default function BudgetsScreen() {
           >
             <BrutalBox contentStyle={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <View style={[styles.modalIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                <View style={[styles.modalIcon, brutalBorder(2, colors), { backgroundColor: colors.yellow }]}>
                   <Ionicons name="wallet" size={22} color={colors.ink} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -522,7 +792,7 @@ export default function BudgetsScreen() {
 
               <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Nombre</SText>
               <TextInput
-                style={[styles.textInput, brutalBorder(2)]}
+                style={[styles.textInput, brutalBorder(2, colors)]}
                 value={newTitle}
                 onChangeText={setNewTitle}
                 placeholder="Ej. Netflix, Spotify, Gym..."
@@ -544,12 +814,12 @@ export default function BudgetsScreen() {
                         key={c.id}
                         style={[
                           styles.categoryChip,
-                          brutalBorder(2),
+                          brutalBorder(2, colors),
                           { backgroundColor: selected ? colors.pink : colors.surface },
                         ]}
                         onPress={() => setNewCategory(c.id)}
                       >
-                        <View style={[styles.chipIcon, brutalBorder(2), { backgroundColor: c.color || colors.yellow }]}>
+                        <View style={[styles.chipIcon, brutalBorder(2, colors), { backgroundColor: c.color || colors.yellow }]}>
                           <Ionicons name={c.icon as any} size={16} color={colors.ink} />
                         </View>
                         <SText variant="caption2" style={{ fontWeight: '700' }} numberOfLines={1}>
@@ -562,7 +832,7 @@ export default function BudgetsScreen() {
               )}
 
               <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Límite mensual</SText>
-              <View style={[styles.inputWrap, brutalBorder(2)]}>
+              <View style={[styles.inputWrap, brutalBorder(2, colors)]}>
                 <SText variant="body" style={{ fontWeight: '700' }}>$</SText>
                 <TextInput
                   style={styles.input}
@@ -605,9 +875,9 @@ export default function BudgetsScreen() {
             style={[styles.modalWrap, { paddingBottom: Math.max(insets.bottom, spacing.lg) }]}
           >
               <BrutalBox shadow={5} contentStyle={[styles.modalContent, styles.payModalContent]}>
-                <View style={[styles.payModalAccent, brutalBorder(2)]} />
+                <View style={[styles.payModalAccent, brutalBorder(2, colors)]} />
                 <View style={styles.payModalHeader}>
-                  <View style={[styles.modalIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                  <View style={[styles.modalIcon, brutalBorder(2, colors), { backgroundColor: colors.yellow }]}>
                     <Ionicons name="card-outline" size={22} color={colors.ink} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
@@ -618,7 +888,7 @@ export default function BudgetsScreen() {
                       {payBudget?.title} · {payBudget?.category_name}
                     </SText>
                   </View>
-                  <AnimatedPressable onPress={closePay} style={[styles.payCloseBtn, brutalBorder(2)]}>
+                  <AnimatedPressable onPress={closePay} style={[styles.payCloseBtn, brutalBorder(2, colors)]}>
                     <Ionicons name="close" size={18} color={colors.ink} />
                   </AnimatedPressable>
                 </View>
@@ -638,7 +908,7 @@ export default function BudgetsScreen() {
                       style={styles.payStatBox}
                       contentStyle={styles.payStatInner}
                     >
-                      <View style={[styles.payStatIcon, brutalBorder(2), { backgroundColor: colors.surface }]}>
+                      <View style={[styles.payStatIcon, brutalBorder(2, colors), { backgroundColor: colors.surface }]}>
                         <Ionicons name="wallet-outline" size={14} color={colors.ink} />
                       </View>
                       <SText variant="caption2" color={colors.textMuted} style={styles.payStatLabel}>
@@ -655,7 +925,7 @@ export default function BudgetsScreen() {
                       style={styles.payStatBox}
                       contentStyle={styles.payStatInner}
                     >
-                      <View style={[styles.payStatIcon, brutalBorder(2), { backgroundColor: colors.surface }]}>
+                      <View style={[styles.payStatIcon, brutalBorder(2, colors), { backgroundColor: colors.surface }]}>
                         <Ionicons name="pie-chart-outline" size={14} color="#15803D" />
                       </View>
                       <SText variant="caption2" color={colors.textMuted} style={styles.payStatLabel}>
@@ -717,7 +987,7 @@ export default function BudgetsScreen() {
                     Nota opcional
                   </SText>
                   <TextInput
-                    style={[styles.payNoteInput, brutalBorder(2)]}
+                    style={[styles.payNoteInput, brutalBorder(2, colors)]}
                     value={payNote}
                     onChangeText={setPayNote}
                     placeholder="Detalle del pago..."
@@ -759,7 +1029,7 @@ export default function BudgetsScreen() {
           >
             <BrutalBox bg={colors.expenseBg} shadow={5} contentStyle={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <View style={[styles.modalIcon, brutalBorder(), { backgroundColor: colors.surface }]}>
+                <View style={[styles.modalIcon, brutalBorder(undefined, colors), { backgroundColor: colors.surface }]}>
                   <Ionicons name="trash-outline" size={22} color={colors.expense} />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -804,256 +1074,3 @@ export default function BudgetsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, zIndex: 1 },
-  scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  summaryStat: { padding: spacing.md, minWidth: 0 },
-  summaryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  summaryLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
-  healthCard: { padding: spacing.lg, marginBottom: spacing.lg },
-  healthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  healthBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.sm,
-  },
-  sectionTitle: { fontWeight: '800', textTransform: 'uppercase' },
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  countBadge: {
-    backgroundColor: colors.yellow,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-  },
-  addMoreCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  addMoreIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyHero: {
-    paddingVertical: spacing.xxxl,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  emptyHeroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  emptyHeroTitle: { fontWeight: '800', textAlign: 'center', marginBottom: spacing.sm },
-  emptyHeroText: { textAlign: 'center', lineHeight: 20, maxWidth: 280 },
-  tipsCard: { padding: spacing.lg, marginBottom: spacing.lg },
-  tipsTitle: { fontWeight: '800', textTransform: 'uppercase', marginBottom: spacing.md },
-  tipRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
-  tipRowBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
-  tipIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-  },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalKeyboard: { width: '100%' },
-  modalWrap: { padding: spacing.xl, paddingBottom: spacing.lg },
-  modalContent: { padding: spacing.xl },
-  payModalContent: { paddingTop: spacing.lg, overflow: 'visible' as const },
-  payModalAccent: {
-    position: 'absolute',
-    top: 0,
-    left: spacing.xl,
-    right: spacing.xl,
-    height: 6,
-    backgroundColor: colors.yellow,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderTopLeftRadius: radii.sm,
-    borderTopRightRadius: radii.sm,
-  },
-  payModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-    paddingTop: spacing.xs,
-  },
-  payCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bgAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  payModalScroll: { paddingBottom: spacing.sm },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
-  modalIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fieldLabel: { marginBottom: spacing.sm, marginTop: spacing.sm, textTransform: 'uppercase', fontWeight: '600' },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  categoryChip: {
-    width: '31%',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.md,
-    gap: 6,
-  },
-  chipIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  textInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
-    color: colors.ink,
-    fontSize: 15,
-    marginBottom: spacing.sm,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 4,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  input: {
-    flex: 1,
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: '700',
-    paddingVertical: 12,
-  },
-  modalCancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
-  payStatsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  payStatBox: { flex: 1, minWidth: 0 },
-  payStatInner: { padding: spacing.md },
-  payStatIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  payStatLabel: {
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 2,
-  },
-  payFieldLabel: {
-    marginBottom: spacing.sm,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  payAmountCard: {
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  payAmountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    width: '100%',
-    marginBottom: spacing.xs,
-  },
-  payInput: {
-    flex: 1,
-    maxWidth: 200,
-    color: colors.ink,
-    fontSize: 32,
-    fontWeight: '800',
-    paddingVertical: 8,
-    textAlign: 'center',
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
-  },
-  quickFillChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.lg,
-  },
-  payNoteInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
-    color: colors.ink,
-    fontSize: 15,
-    marginBottom: spacing.md,
-  },
-});

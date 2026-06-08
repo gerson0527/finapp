@@ -1,7 +1,8 @@
 import React, { ReactNode } from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 import BrutalBox from '@/src/components/BrutalBox';
-import { colors, radii } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { radii } from '@/src/constants/theme';
 
 interface GlassCardProps {
   children: ReactNode;
@@ -17,10 +18,12 @@ export default function GlassCard({
   children,
   style,
   contentStyle,
-  bg = colors.surface,
+  bg,
 }: GlassCardProps) {
+  const { colors } = useTheme();
+
   return (
-    <BrutalBox bg={bg} radius={radii.lg} style={style} contentStyle={contentStyle}>
+    <BrutalBox bg={bg ?? colors.surface} radius={radii.lg} style={style} contentStyle={contentStyle}>
       {children}
     </BrutalBox>
   );

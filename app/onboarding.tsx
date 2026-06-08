@@ -25,7 +25,9 @@ import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import { copDigitsToNumber, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder, webTextInputReset } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 
 const ACCOUNT_TYPES: { id: AccountType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { id: 'checking', label: 'Corriente', icon: 'card-outline' },
@@ -35,6 +37,61 @@ const ACCOUNT_TYPES: { id: AccountType; label: string; icon: keyof typeof Ionico
 ];
 
 export default function OnboardingScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl },
+    progressTrack: {
+      height: 8,
+      backgroundColor: colors.bgAlt,
+      borderRadius: radii.pill,
+      overflow: 'hidden',
+      marginBottom: spacing.sm,
+      borderWidth: 2,
+      borderColor: colors.ink,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: colors.yellow,
+    },
+    stepLabel: { fontWeight: '800', marginBottom: spacing.xl },
+    scroll: { paddingBottom: 120 },
+    subtitle: { marginTop: spacing.sm, marginBottom: spacing.xl, lineHeight: 22 },
+    amountCard: { padding: spacing.xl, marginBottom: spacing.xl },
+    amountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+    amountInput: {
+      fontSize: 36,
+      fontWeight: '800',
+      color: colors.ink,
+      minWidth: 80,
+      textAlign: 'center',
+      ...webTextInputReset,
+    },
+    fieldLabel: { fontWeight: '800', marginBottom: spacing.sm, marginTop: spacing.md },
+    textInput: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 14,
+      color: colors.ink,
+      fontSize: 16,
+      marginBottom: spacing.md,
+    },
+    typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.lg },
+    typeChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surface,
+    },
+    typeChipActive: { backgroundColor: colors.yellow },
+    doneCard: { padding: spacing.xxxl, alignItems: 'center', marginBottom: spacing.xl },
+  })
+    );
   const insets = useSafeAreaInsets();
   const { refreshOnboarding } = useAuth();
   const [step, setStep] = useState(1);
@@ -148,7 +205,7 @@ export default function OnboardingScreen() {
 
             <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>NOMBRE</SText>
             <TextInput
-              style={[styles.textInput, brutalBorder(2)]}
+              style={[styles.textInput, brutalBorder(2, colors)]}
               value={accountName}
               onChangeText={setAccountName}
               placeholder="Ej. Cuenta Principal"
@@ -160,7 +217,7 @@ export default function OnboardingScreen() {
               {ACCOUNT_TYPES.map((t) => (
                 <AnimatedPressable
                   key={t.id}
-                  style={[styles.typeChip, brutalBorder(2), accountType === t.id && styles.typeChipActive]}
+                  style={[styles.typeChip, brutalBorder(2, colors), accountType === t.id && styles.typeChipActive]}
                   onPress={() => setAccountType(t.id)}
                 >
                   <Ionicons name={t.icon} size={16} color={colors.ink} />
@@ -207,54 +264,3 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.xl },
-  progressTrack: {
-    height: 8,
-    backgroundColor: colors.bgAlt,
-    borderRadius: radii.pill,
-    overflow: 'hidden',
-    marginBottom: spacing.sm,
-    borderWidth: 2,
-    borderColor: colors.ink,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.yellow,
-  },
-  stepLabel: { fontWeight: '800', marginBottom: spacing.xl },
-  scroll: { paddingBottom: 120 },
-  subtitle: { marginTop: spacing.sm, marginBottom: spacing.xl, lineHeight: 22 },
-  amountCard: { padding: spacing.xl, marginBottom: spacing.xl },
-  amountRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  amountInput: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: colors.ink,
-    minWidth: 80,
-    textAlign: 'center',
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
-  },
-  fieldLabel: { fontWeight: '800', marginBottom: spacing.sm, marginTop: spacing.md },
-  textInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
-    color: colors.ink,
-    fontSize: 16,
-    marginBottom: spacing.md,
-  },
-  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: spacing.lg },
-  typeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surface,
-  },
-  typeChipActive: { backgroundColor: colors.yellow },
-  doneCard: { padding: spacing.xxxl, alignItems: 'center', marginBottom: spacing.xl },
-});

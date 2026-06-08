@@ -4,9 +4,9 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-import { colors } from '@/src/constants/theme';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { AppProvider } from '@/src/context/AppContext';
+import { ThemeProvider, useTheme } from '@/src/context/ThemeContext';
 import MonthlyBalanceGate from '@/src/components/MonthlyBalanceGate';
 import { initNotifications } from '@/services/notificationService';
 
@@ -14,8 +14,15 @@ SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { session, isLoading, onboardingComplete, pendingWelcome } = useAuth();
+  const { colors } = useTheme();
   const router = useRouter();
   const segments = useSegments();
+
+  const stackHeader = {
+    headerStyle: { backgroundColor: colors.bg },
+    headerTintColor: colors.ink,
+    headerShadowVisible: false,
+  };
 
   useEffect(() => {
     if (isLoading) return;
@@ -61,15 +68,28 @@ function RootNavigator() {
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="welcome" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="savings" options={{ headerShown: true, headerTitle: 'Metas de Ahorro', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
-      <Stack.Screen name="categories" options={{ headerShown: true, headerTitle: 'Categorías', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
+      <Stack.Screen name="savings" options={{ headerShown: true, headerTitle: 'Metas de Ahorro', ...stackHeader }} />
+      <Stack.Screen name="categories" options={{ headerShown: true, headerTitle: 'Categorías', ...stackHeader }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
-      <Stack.Screen name="analytics" options={{ headerShown: true, headerTitle: 'Analytics', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
-      <Stack.Screen name="accounts" options={{ headerShown: true, headerTitle: 'Cuentas', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
-      <Stack.Screen name="recurring" options={{ headerShown: true, headerTitle: 'Gastos recurrentes', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
-      <Stack.Screen name="notifications-settings" options={{ headerShown: true, headerTitle: 'Notificaciones', headerStyle: { backgroundColor: colors.bg }, headerTintColor: colors.ink, headerShadowVisible: false }} />
+      <Stack.Screen name="analytics" options={{ headerShown: true, headerTitle: 'Analytics', ...stackHeader }} />
+      <Stack.Screen name="accounts" options={{ headerShown: true, headerTitle: 'Cuentas', ...stackHeader }} />
+      <Stack.Screen name="recurring" options={{ headerShown: true, headerTitle: 'Gastos recurrentes', ...stackHeader }} />
+      <Stack.Screen name="notifications-settings" options={{ headerShown: true, headerTitle: 'Notificaciones', ...stackHeader }} />
       <Stack.Screen name="transaction/[id]" options={{ headerShown: false }} />
     </Stack>
+  );
+}
+
+function ThemedAppShell() {
+  const { colors } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={colors.statusBar} />
+      <MonthlyBalanceGate>
+        <RootNavigator />
+      </MonthlyBalanceGate>
+    </>
   );
 }
 
@@ -81,18 +101,16 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     if (!('serviceWorker' in navigator)) return;
-
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }, []);
 
   return (
-    <AuthProvider>
-      <AppProvider>
-        <StatusBar style="dark" />
-        <MonthlyBalanceGate>
-          <RootNavigator />
-        </MonthlyBalanceGate>
-      </AppProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppProvider>
+          <ThemedAppShell />
+        </AppProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

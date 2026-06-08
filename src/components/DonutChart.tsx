@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import SText from '@/src/components/SText';
-import { colors } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
 
 interface DonutChartProps {
   percentage: number;
@@ -18,11 +18,14 @@ export default function DonutChart({
   percentage,
   size = 140,
   strokeWidth = 14,
-  color = colors.yellowDark,
-  bgColor = colors.bgAlt,
+  color,
+  bgColor,
   showPercentage = true,
   label,
 }: DonutChartProps) {
+  const { colors } = useTheme();
+  const strokeColor = color ?? colors.yellowDark;
+  const trackBg = bgColor ?? colors.bgAlt;
   const [displayPct, setDisplayPct] = React.useState(0);
   const frameRef = useRef<number>(0);
 
@@ -57,11 +60,11 @@ export default function DonutChart({
         />
         <Circle
           cx={size / 2} cy={size / 2} r={radius}
-          stroke={bgColor} strokeWidth={strokeWidth} fill="none"
+          stroke={trackBg} strokeWidth={strokeWidth} fill="none"
         />
         <Circle
           cx={size / 2} cy={size / 2} r={radius}
-          stroke={color} strokeWidth={strokeWidth} fill="none"
+          stroke={strokeColor} strokeWidth={strokeWidth} fill="none"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
           strokeLinecap="round"

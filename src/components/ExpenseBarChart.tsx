@@ -5,7 +5,8 @@ import Svg, { Rect } from 'react-native-svg';
 import SText from '@/src/components/SText';
 import { formatMonthLabel } from '@/lib/month';
 import { formatCOP } from '@/src/utils/currency';
-import { colors, spacing } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { spacing } from '@/src/constants/theme';
 import type { ExpenseByMonth } from '@/services/analyticsService';
 
 interface ExpenseBarChartProps {
@@ -14,6 +15,7 @@ interface ExpenseBarChartProps {
 }
 
 export default function ExpenseBarChart({ data, height = 160 }: ExpenseBarChartProps) {
+  const { colors } = useTheme();
   const maxWidth = useChartWidth();
   const max = Math.max(...data.map((d) => d.total), 1);
   const gap = 12;

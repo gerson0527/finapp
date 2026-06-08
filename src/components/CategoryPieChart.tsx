@@ -4,7 +4,9 @@ import { useChartWidth } from '@/src/hooks/useChartWidth';
 import Svg, { Path, Circle } from 'react-native-svg';
 import SText from '@/src/components/SText';
 import { formatCOP } from '@/src/utils/currency';
-import { colors, spacing } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { spacing } from '@/src/constants/theme';
 import type { ExpenseByCategory } from '@/services/analyticsService';
 
 interface CategoryPieChartProps {
@@ -25,6 +27,24 @@ function describeArc(cx: number, cy: number, r: number, startAngle: number, endA
 }
 
 export default function CategoryPieChart({ data, size: sizeProp = 160 }: CategoryPieChartProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      wrap: { alignItems: 'center', gap: spacing.md },
+      empty: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: colors.ink,
+        borderRadius: 80,
+        backgroundColor: colors.bgAlt,
+      },
+      legend: { width: '100%', gap: 6 },
+      legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+      dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: colors.ink },
+    })
+  );
+
   const size = Math.min(sizeProp, useChartWidth() - 16);
   const total = data.reduce((s, d) => s + d.total, 0);
   const cx = size / 2;
@@ -68,18 +88,3 @@ export default function CategoryPieChart({ data, size: sizeProp = 160 }: Categor
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', gap: spacing.md },
-  empty: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.ink,
-    borderRadius: 80,
-    backgroundColor: colors.bgAlt,
-  },
-  legend: { width: '100%', gap: 6 },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dot: { width: 10, height: 10, borderRadius: 5, borderWidth: 1, borderColor: colors.ink },
-});

@@ -17,7 +17,9 @@ import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import ConfirmModal from '@/src/components/ConfirmModal';
 import { formatCOP } from '@/src/utils/currency';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 
 interface TransactionReadOnlyViewProps {
   transaction: Transaction;
@@ -30,6 +32,58 @@ export default function TransactionReadOnlyView({
   onDelete,
   onClose,
 }: TransactionReadOnlyViewProps) {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    actionBar: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.xs,
+    },
+    deleteBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: radii.pill,
+      backgroundColor: colors.expenseBg,
+    },
+    deleteBtnDisabled: { opacity: 0.6 },
+    scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120 },
+    sourceBadge: {
+      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: radii.pill,
+      marginTop: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    amountCard: {
+      padding: spacing.xl,
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    detailCard: { padding: spacing.lg, marginBottom: spacing.lg },
+    detailRow: { paddingVertical: spacing.sm },
+    detailBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
+    catRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4 },
+    catIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    hintBox: { padding: spacing.md },
+  })
+    );
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
@@ -81,7 +135,7 @@ export default function TransactionReadOnlyView({
           <AnimatedPressable
             onPress={handleDeletePress}
             disabled={deleting}
-            style={[styles.deleteBtn, brutalBorder(2), deleting && styles.deleteBtnDisabled]}
+            style={[styles.deleteBtn, brutalBorder(2, colors), deleting && styles.deleteBtnDisabled]}
           >
             <Ionicons name="trash-outline" size={16} color={colors.expense} />
             <SText variant="caption2" color={colors.expense} style={{ fontWeight: '800' }}>
@@ -93,7 +147,7 @@ export default function TransactionReadOnlyView({
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {sourceLabel ? (
-          <View style={[styles.sourceBadge, brutalBorder(2), {
+          <View style={[styles.sourceBadge, brutalBorder(2, colors), {
             backgroundColor: isBudgetPayment(transaction) ? colors.surfaceAlt : colors.incomeBg,
           }]}>
             <Ionicons
@@ -126,7 +180,7 @@ export default function TransactionReadOnlyView({
             <View style={[styles.detailRow, styles.detailBorder]}>
               <SText variant="caption2" color={colors.textMuted}>Categoría</SText>
               <View style={styles.catRow}>
-                <View style={[styles.catIcon, { backgroundColor: cat.color || colors.yellow }, brutalBorder(2)]}>
+                <View style={[styles.catIcon, { backgroundColor: cat.color || colors.yellow }, brutalBorder(2, colors)]}>
                   <Ionicons name={(cat.icon as any) || 'ellipse'} size={14} color={colors.ink} />
                 </View>
                 <SText variant="body" style={{ fontWeight: '700' }}>{cat.name}</SText>
@@ -180,51 +234,3 @@ export default function TransactionReadOnlyView({
   );
 }
 
-const styles = StyleSheet.create({
-  actionBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  deleteBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.expenseBg,
-  },
-  deleteBtnDisabled: { opacity: 0.6 },
-  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 120 },
-  sourceBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.pill,
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  amountCard: {
-    padding: spacing.xl,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  detailCard: { padding: spacing.lg, marginBottom: spacing.lg },
-  detailRow: { paddingVertical: spacing.sm },
-  detailBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
-  catRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4 },
-  catIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  hintBox: { padding: spacing.md },
-});

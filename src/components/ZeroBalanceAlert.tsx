@@ -17,7 +17,10 @@ import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import { formatCOP } from '@/src/utils/currency';
 import { isBalanceEmpty } from '@/lib/balanceAlerts';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import type { ThemeColors } from '@/src/constants/colors';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 interface ZeroBalanceAlertProps {
   visible: boolean;
@@ -61,15 +64,21 @@ function TearDrop({ delay, left }: { delay: number; left: number }) {
   }));
 
   return (
-    <Animated.View style={[styles.tear, { left }, style]}>
-      <View style={styles.tearDot} />
+    <Animated.View style={[{ position: 'absolute', top: 58 }, { left }, style]}>
+      <View style={tearDotStyle} />
     </Animated.View>
   );
 }
 
+const tearDotStyle = {
+  width: 6,
+  height: 10,
+  borderRadius: 3,
+  backgroundColor: '#4A9EFF',
+};
+
 const SHAKE_PAUSE_MS = 2600;
 
-/** Sacudida del cuadro brutalista — entra con pop y se agita en loop */
 function useCardShake(active: boolean) {
   const translateX = useSharedValue(0);
   const rotate = useSharedValue(0);
@@ -123,7 +132,7 @@ function useCardShake(active: boolean) {
   }));
 }
 
-function SadFace() {
+function SadFace({ colors }: { colors: ThemeColors }) {
   const sway = useSharedValue(0);
   const bounce = useSharedValue(1);
 
@@ -154,8 +163,21 @@ function SadFace() {
   }));
 
   return (
-    <View style={styles.faceWrap}>
-      <Animated.View style={[styles.faceCircle, brutalBorder(3), faceStyle]}>
+    <View style={{ width: 88, height: 88, marginBottom: spacing.lg, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View
+        style={[
+          {
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: colors.surface,
+            justifyContent: 'center',
+            alignItems: 'center',
+          },
+          brutalBorder(3, colors),
+          faceStyle,
+        ]}
+      >
         <Ionicons name="sad" size={52} color={colors.ink} />
       </Animated.View>
       <TearDrop delay={0} left={28} />
@@ -170,15 +192,54 @@ export default function ZeroBalanceAlert({
   onDismiss,
   onGoToBudgets,
 }: ZeroBalanceAlertProps) {
+  const { colors } = useTheme();
   const empty = isBalanceEmpty(balance);
   const cardShake = useCardShake(visible);
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: spacing.xl,
+      },
+      wrap: { width: '100%' },
+      card: {
+        padding: spacing.xl,
+        alignItems: 'center',
+      },
+      title: {
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+      },
+      message: {
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: spacing.md,
+      },
+      tipBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: spacing.sm,
+        padding: spacing.md,
+        width: '100%',
+      },
+      dismissBtn: {
+        marginTop: spacing.md,
+        paddingVertical: spacing.sm,
+      },
+    })
+  );
 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <Animated.View style={[styles.wrap, cardShake]}>
           <BrutalBox bg={colors.expenseBg} shadow={6} contentStyle={styles.card}>
-            <SadFace />
+            <SadFace colors={colors} />
 
             <SText variant="title3" style={styles.title}>
               {empty ? 'Tu balance llegó a cero' : '¡Casi sin saldo!'}
@@ -216,64 +277,3 @@ export default function ZeroBalanceAlert({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  wrap: { width: '100%' },
-  card: {
-    padding: spacing.xl,
-    alignItems: 'center',
-  },
-  faceWrap: {
-    width: 88,
-    height: 88,
-    marginBottom: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  faceCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tear: {
-    position: 'absolute',
-    top: 58,
-  },
-  tearDot: {
-    width: 6,
-    height: 10,
-    borderRadius: 3,
-    backgroundColor: '#4A9EFF',
-  },
-  title: {
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  message: {
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: spacing.md,
-  },
-  tipBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.md,
-    width: '100%',
-  },
-  dismissBtn: {
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-});

@@ -33,7 +33,10 @@ import FadeInView from '@/src/components/FadeInView';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import AuthFeedback, { AuthFeedbackType } from '@/src/components/AuthFeedback';
 import { useApp } from '@/src/context/AppContext';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder, webTextInputReset } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import type { ThemeColors } from '@/src/constants/colors';
 
 const presetIcons = [
   'restaurant', 'car', 'film', 'cart', 'bag', 'play-circle',
@@ -41,10 +44,12 @@ const presetIcons = [
   'card', 'cafe', 'airplane', 'heart', 'medical', 'school',
 ];
 
-const presetColors = [
-  colors.yellowDark, colors.pink, '#4A9EFF', colors.warning,
-  '#A855F7', '#FF69B4', '#00D4AA', '#FF8C00', colors.income, colors.expense,
-];
+function getPresetColors(colors: ThemeColors) {
+  return [
+    colors.yellowDark, colors.pink, '#4A9EFF', colors.warning,
+    '#A855F7', '#FF69B4', '#00D4AA', '#FF8C00', colors.income, colors.expense,
+  ];
+}
 
 type CategoryType = 'expense' | 'income';
 
@@ -55,7 +60,7 @@ interface FormState {
   color: string;
 }
 
-const emptyForm = (type: CategoryType = 'expense'): FormState => ({
+const emptyForm = (type: CategoryType, colors: ThemeColors): FormState => ({
   name: '',
   type,
   icon: 'wallet',
@@ -67,11 +72,15 @@ function CategoryRow({
   badgeLabel,
   badgeBg,
   onPress,
+  colors,
+  styles,
 }: {
   category: Category;
   badgeLabel: string;
   badgeBg: string;
   onPress: () => void;
+  colors: ThemeColors;
+  styles: Record<string, object>;
 }) {
   return (
     <AnimatedPressable onPress={onPress} style={styles.catRow}>
@@ -79,7 +88,7 @@ function CategoryRow({
         <Ionicons name={category.icon as any} size={22} color={colors.ink} />
       </View>
       <SText variant="body" style={{ flex: 1, fontWeight: '600', minWidth: 0 }} numberOfLines={1}>{category.name}</SText>
-      <View style={[styles.badge, brutalBorder(2), { backgroundColor: badgeBg }]}>
+      <View style={[styles.badge, brutalBorder(2, colors), { backgroundColor: badgeBg }]}>
         <SText variant="caption2" style={{ fontWeight: '700' }}>{badgeLabel}</SText>
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.textMuted} style={{ marginLeft: 6 }} />
@@ -95,6 +104,8 @@ function CategorySection({
   index,
   onAdd,
   onEdit,
+  colors,
+  styles,
 }: {
   title: string;
   categories: Category[];
@@ -103,6 +114,8 @@ function CategorySection({
   index: number;
   onAdd: () => void;
   onEdit: (category: Category) => void;
+  colors: ThemeColors;
+  styles: Record<string, object>;
 }) {
   return (
     <FadeInView index={index}>
@@ -133,6 +146,8 @@ function CategorySection({
                 badgeLabel={badgeLabel}
                 badgeBg={badgeBg}
                 onPress={() => onEdit(c)}
+                colors={colors}
+                styles={styles}
               />
               {i < categories.length - 1 && <View style={styles.divider} />}
             </View>
@@ -144,6 +159,163 @@ function CategorySection({
 }
 
 export default function CategoriesScreen() {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    headerAddBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+    scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    sectionAddBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
+    sectionCard: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, marginBottom: spacing.xl },
+    emptySection: { padding: spacing.xxl, alignItems: 'center', marginBottom: spacing.xl },
+    catRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      gap: spacing.md,
+    },
+    divider: { height: 2, backgroundColor: colors.bgAlt },
+    iconWrap: {
+      width: 46,
+      height: 46,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...brutalBorder(2, colors),
+    },
+    badge: {
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: radii.pill,
+    },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    modalKeyboard: { width: '100%', maxHeight: '100%' },
+    modalWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+    modalBody: {
+      padding: spacing.md,
+      overflow: 'hidden',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: 2,
+      borderBottomColor: colors.bgAlt,
+    },
+    previewIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalCloseBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.sm,
+      backgroundColor: colors.bgAlt,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalScrollArea: {
+      flexGrow: 0,
+      flexShrink: 1,
+    },
+    modalScrollContent: {
+      paddingBottom: spacing.xs,
+    },
+    modalFooter: {
+      borderTopWidth: 2,
+      borderTopColor: colors.bgAlt,
+      paddingTop: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    footerLinks: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: spacing.lg,
+      marginTop: spacing.sm,
+    },
+    footerLinkBtn: {
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.sm,
+    },
+    fieldLabel: {
+      marginBottom: 4,
+      marginTop: spacing.xs,
+      textTransform: 'uppercase',
+      fontWeight: '700',
+      letterSpacing: 0.3,
+    },
+    typeRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.sm },
+    typeChip: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: radii.pill,
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+    },
+    input: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 10,
+      color: colors.ink,
+      fontSize: 15,
+      marginBottom: spacing.sm,
+      ...webTextInputReset,
+    },
+    iconGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginBottom: spacing.sm,
+    },
+    iconItem: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.sm,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    iconItemSelected: {
+      backgroundColor: colors.yellow,
+      borderWidth: 3,
+      borderColor: colors.ink,
+    },
+    colorGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: spacing.xs,
+    },
+    colorItem: { width: 32, height: 32, borderRadius: 16 },
+    colorItemSelected: { borderWidth: 3, borderColor: colors.ink },
+    modalCancelLink: {
+      alignSelf: 'center',
+      marginTop: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    usageHint: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+      padding: spacing.sm,
+      marginTop: spacing.xs,
+    },
+  })
+    );
+  const presetColors = getPresetColors(colors);
   const { triggerRefresh } = useApp();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -153,7 +325,7 @@ export default function CategoriesScreen() {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
-  const [form, setForm] = useState<FormState>(emptyForm());
+  const [form, setForm] = useState<FormState>(() => emptyForm('expense', colors));
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [formFeedback, setFormFeedback] = useState<{
@@ -184,7 +356,7 @@ export default function CategoriesScreen() {
 
   const openCreate = (type: CategoryType) => {
     setEditing(null);
-    setForm(emptyForm(type));
+    setForm(emptyForm(type, colors));
     setCategoryUsage(null);
     setUsageLoading(false);
     setModalVisible(true);
@@ -217,7 +389,7 @@ export default function CategoriesScreen() {
   const closeModal = () => {
     setModalVisible(false);
     setEditing(null);
-    setForm(emptyForm());
+    setForm(emptyForm('expense', colors));
     setConfirmDelete(false);
     setFormFeedback(null);
     setCategoryUsage(null);
@@ -354,6 +526,8 @@ export default function CategoriesScreen() {
                 index={1}
                 onAdd={() => openCreate('expense')}
                 onEdit={openEdit}
+                colors={colors}
+                styles={styles}
               />
               <CategorySection
                 title="Ingresos"
@@ -363,6 +537,8 @@ export default function CategoriesScreen() {
                 index={2}
                 onAdd={() => openCreate('income')}
                 onEdit={openEdit}
+                colors={colors}
+                styles={styles}
               />
             </>
           )}
@@ -386,7 +562,7 @@ export default function CategoriesScreen() {
                   contentStyle={[styles.modalBody, { maxHeight: modalMaxHeight }]}
                 >
                   <View style={styles.modalHeader}>
-                    <View style={[styles.previewIcon, brutalBorder(2), { backgroundColor: form.color }]}>
+                    <View style={[styles.previewIcon, brutalBorder(2, colors), { backgroundColor: form.color }]}>
                       <Ionicons name={form.icon as any} size={20} color={colors.ink} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
@@ -399,7 +575,7 @@ export default function CategoriesScreen() {
                         </SText>
                       ) : null}
                     </View>
-                    <AnimatedPressable onPress={closeModal} style={[styles.modalCloseBtn, brutalBorder(2)]}>
+                    <AnimatedPressable onPress={closeModal} style={[styles.modalCloseBtn, brutalBorder(2, colors)]}>
                       <Ionicons name="close" size={18} color={colors.ink} />
                     </AnimatedPressable>
                   </View>
@@ -450,7 +626,7 @@ export default function CategoriesScreen() {
                               key={opt.value}
                               style={[
                                 styles.typeChip,
-                                brutalBorder(2),
+                                brutalBorder(2, colors),
                                 { backgroundColor: form.type === opt.value ? opt.bg : colors.surface },
                               ]}
                               onPress={() => setForm((f) => ({ ...f, type: opt.value }))}
@@ -462,7 +638,7 @@ export default function CategoriesScreen() {
 
                         <SText variant="caption2" color={colors.textMuted} style={styles.fieldLabel}>Nombre</SText>
                         <TextInput
-                          style={[styles.input, brutalBorder(2)]}
+                          style={[styles.input, brutalBorder(2, colors)]}
                           placeholder="Ej. Banco, Netflix..."
                           placeholderTextColor={colors.textMuted}
                           value={form.name}
@@ -476,7 +652,7 @@ export default function CategoriesScreen() {
                               key={ic}
                               style={[
                                 styles.iconItem,
-                                brutalBorder(2),
+                                brutalBorder(2, colors),
                                 form.icon === ic && styles.iconItemSelected,
                               ]}
                               onPress={() => setForm((f) => ({ ...f, icon: ic }))}
@@ -494,7 +670,7 @@ export default function CategoriesScreen() {
                               style={[
                                 styles.colorItem,
                                 { backgroundColor: clr },
-                                brutalBorder(2),
+                                brutalBorder(2, colors),
                                 form.color === clr && styles.colorItemSelected,
                               ]}
                               onPress={() => setForm((f) => ({ ...f, color: clr }))}
@@ -557,155 +733,3 @@ export default function CategoriesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  headerAddBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  sectionAddBtn: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
-  sectionCard: { paddingHorizontal: spacing.lg, paddingVertical: spacing.xs, marginBottom: spacing.xl },
-  emptySection: { padding: spacing.xxl, alignItems: 'center', marginBottom: spacing.xl },
-  catRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    gap: spacing.md,
-  },
-  divider: { height: 2, backgroundColor: colors.bgAlt },
-  iconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...brutalBorder(2),
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.pill,
-  },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  modalKeyboard: { width: '100%', maxHeight: '100%' },
-  modalWrap: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
-  modalBody: {
-    padding: spacing.md,
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.bgAlt,
-  },
-  previewIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bgAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalScrollArea: {
-    flexGrow: 0,
-    flexShrink: 1,
-  },
-  modalScrollContent: {
-    paddingBottom: spacing.xs,
-  },
-  modalFooter: {
-    borderTopWidth: 2,
-    borderTopColor: colors.bgAlt,
-    paddingTop: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  footerLinks: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  footerLinkBtn: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-  },
-  fieldLabel: {
-    marginBottom: 4,
-    marginTop: spacing.xs,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  typeRow: { flexDirection: 'row', gap: 8, marginBottom: spacing.sm },
-  typeChip: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    color: colors.ink,
-    fontSize: 15,
-    marginBottom: spacing.sm,
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
-  },
-  iconGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: spacing.sm,
-  },
-  iconItem: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconItemSelected: {
-    backgroundColor: colors.yellow,
-    borderWidth: 3,
-    borderColor: colors.ink,
-  },
-  colorGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: spacing.xs,
-  },
-  colorItem: { width: 32, height: 32, borderRadius: 16 },
-  colorItemSelected: { borderWidth: 3, borderColor: colors.ink },
-  modalCancelLink: {
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  usageHint: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    marginTop: spacing.xs,
-  },
-});

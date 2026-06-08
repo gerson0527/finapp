@@ -10,7 +10,9 @@ import BrutalBox from '@/src/components/BrutalBox';
 import BrutalButton from '@/src/components/BrutalButton';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
 import SText from '@/src/components/SText';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import { radii, spacing, brutalBorder } from '@/src/constants/theme';
 
 interface ExportModalProps {
   visible: boolean;
@@ -19,10 +21,53 @@ interface ExportModalProps {
 
 export default function ExportModal({ visible, onClose }: ExportModalProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { selectedMonth } = useApp();
   const [month, setMonth] = useState(selectedMonth);
   const [loading, setLoading] = useState<'csv' | 'pdf' | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const styles = useThemedStyles((colors) =>
+    StyleSheet.create({
+      overlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'flex-end',
+        padding: spacing.lg,
+      },
+      sheetWrap: { marginBottom: spacing.lg },
+      sheet: { padding: spacing.xl },
+      header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.sm,
+      },
+      closeBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: radii.sm,
+        backgroundColor: colors.surfaceAlt,
+        justifyContent: 'center',
+        alignItems: 'center',
+      },
+      label: { fontWeight: '800', letterSpacing: 0.5, marginBottom: spacing.sm },
+      monthChip: {
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: radii.pill,
+        backgroundColor: colors.surfaceAlt,
+      },
+      monthChipActive: { backgroundColor: colors.yellow },
+      errorBox: {
+        backgroundColor: colors.expenseBg,
+        padding: spacing.md,
+        borderRadius: radii.sm,
+        marginBottom: spacing.md,
+      },
+      actions: { flexDirection: 'row', gap: spacing.md },
+    })
+  );
 
   const months = getRecentMonths(12);
 
@@ -55,7 +100,7 @@ export default function ExportModal({ visible, onClose }: ExportModalProps) {
             <BrutalBox bg={colors.surface} radius={radii.xl} shadow={4} contentStyle={styles.sheet}>
               <View style={styles.header}>
                 <SText variant="headline" style={{ fontWeight: '900' }}>Exportar datos</SText>
-                <AnimatedPressable onPress={onClose} style={[styles.closeBtn, brutalBorder()]}>
+                <AnimatedPressable onPress={onClose} style={[styles.closeBtn, brutalBorder(undefined, colors)]}>
                   <Ionicons name="close" size={18} color={colors.ink} />
                 </AnimatedPressable>
               </View>
@@ -76,7 +121,7 @@ export default function ExportModal({ visible, onClose }: ExportModalProps) {
                   const selected = item.value === month;
                   return (
                     <AnimatedPressable
-                      style={[styles.monthChip, brutalBorder(), selected && styles.monthChipActive]}
+                      style={[styles.monthChip, brutalBorder(undefined, colors), selected && styles.monthChipActive]}
                       onPress={() => setMonth(item.value)}
                     >
                       <SText variant="caption2" style={{ fontWeight: '800' }}>{item.label}</SText>
@@ -86,7 +131,7 @@ export default function ExportModal({ visible, onClose }: ExportModalProps) {
               />
 
               {error ? (
-                <View style={[styles.errorBox, brutalBorder()]}>
+                <View style={[styles.errorBox, brutalBorder(undefined, colors)]}>
                   <SText variant="footnote" color={colors.expense}>{error}</SText>
                 </View>
               ) : null}
@@ -119,43 +164,3 @@ export default function ExportModal({ visible, onClose }: ExportModalProps) {
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-    padding: spacing.lg,
-  },
-  sheetWrap: { marginBottom: spacing.lg },
-  sheet: { padding: spacing.xl },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surfaceAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  label: { fontWeight: '800', letterSpacing: 0.5, marginBottom: spacing.sm },
-  monthChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfaceAlt,
-  },
-  monthChipActive: { backgroundColor: colors.yellow },
-  errorBox: {
-    backgroundColor: colors.expenseBg,
-    padding: spacing.md,
-    borderRadius: radii.sm,
-    marginBottom: spacing.md,
-  },
-  actions: { flexDirection: 'row', gap: spacing.md },
-});

@@ -26,21 +26,31 @@ import ProgressBar from '@/src/components/ProgressBar';
 import { useApp } from '@/src/context/AppContext';
 import { copDigitsToNumber, formatCOP, formatCOPDigits, parseCOPDigits } from '@/src/utils/currency';
 import BalanceExceededAlert from '@/src/components/BalanceExceededAlert';
-import { colors, radii, spacing, brutalBorder } from '@/src/constants/theme';
+import { radii, spacing, brutalBorder, webTextInputReset } from '@/src/constants/theme';
+import { useTheme } from '@/src/context/ThemeContext';
+import { useThemedStyles } from '@/src/hooks/useThemedStyles';
+import type { ThemeColors } from '@/src/constants/colors';
 
 const presetIcons = ['airplane', 'shield-checkmark', 'laptop', 'home', 'car', 'heart', 'school', 'gift'];
-const presetColors = ['#4A9EFF', colors.yellowDark, colors.pink, colors.warning, '#A855F7', '#FF69B4', '#00D4AA', '#FF8C00'];
+
+function getPresetColors(colors: ThemeColors) {
+  return ['#4A9EFF', colors.yellowDark, colors.pink, colors.warning, '#A855F7', '#FF69B4', '#00D4AA', '#FF8C00'];
+}
 
 function SummaryStat({
   label,
   value,
   tone,
   icon,
+  colors,
+  styles,
 }: {
   label: string;
   value: string;
   tone: 'neutral' | 'ok' | 'warn';
   icon: keyof typeof Ionicons.glyphMap;
+  colors: ThemeColors;
+  styles: Record<string, object>;
 }) {
   const bg =
     tone === 'ok' ? colors.incomeBg
@@ -50,7 +60,7 @@ function SummaryStat({
 
   return (
     <BrutalBox bg={bg} radius={radii.md} shadow={3} style={{ flex: 1 }} contentStyle={styles.summaryStat}>
-      <View style={[styles.summaryIcon, brutalBorder(2), { backgroundColor: colors.surface }]}>
+      <View style={[styles.summaryIcon, brutalBorder(2, colors), { backgroundColor: colors.surface }]}>
         <Ionicons name={icon} size={16} color={fg} />
       </View>
       <SText variant="caption2" color={colors.textMuted} style={styles.summaryLabel}>{label}</SText>
@@ -66,6 +76,179 @@ interface SavingsGoalsScreenProps {
 }
 
 export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: SavingsGoalsScreenProps) {
+  const { colors } = useTheme();
+
+  const styles = useThemedStyles((colors) =>
+      StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg },
+    scroll: { flex: 1, zIndex: 1 },
+    scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
+    topBar: { marginBottom: spacing.lg },
+    summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+    summaryStat: { padding: spacing.md, minWidth: 0 },
+    summaryIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    summaryLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
+    progressCard: { padding: spacing.lg, marginBottom: spacing.lg },
+    progressHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    progressBadge: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: radii.sm,
+    },
+    sectionTitle: { fontWeight: '800', textTransform: 'uppercase' },
+    listHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    countBadge: {
+      backgroundColor: colors.yellow,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: radii.pill,
+    },
+    addMoreCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.lg,
+      marginTop: spacing.sm,
+    },
+    addMoreIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyHero: {
+      paddingVertical: spacing.xxxl,
+      paddingHorizontal: spacing.xl,
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    emptyHeroIcon: {
+      width: 72,
+      height: 72,
+      borderRadius: radii.lg,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    emptyHeroTitle: { fontWeight: '800', textAlign: 'center', marginBottom: spacing.sm },
+    emptyHeroText: { textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+    tipsCard: { padding: spacing.lg, marginBottom: spacing.lg },
+    tipsTitle: { fontWeight: '800', textTransform: 'uppercase', marginBottom: spacing.md },
+    tipRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
+    tipRowBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
+    tipIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.xl,
+    },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    modalWrap: { padding: spacing.xl },
+    modalContent: { padding: spacing.xl },
+    modalHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
+    modalIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: radii.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fieldLabel: { marginBottom: spacing.sm, marginTop: spacing.sm, textTransform: 'uppercase', fontWeight: '600' },
+    input: {
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 14,
+      color: colors.ink,
+      fontSize: 15,
+      marginBottom: spacing.sm,
+    },
+    inputWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radii.md,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: 4,
+      marginBottom: spacing.md,
+      gap: spacing.sm,
+    },
+    amountField: {
+      flex: 1,
+      color: colors.ink,
+      fontSize: 18,
+      fontWeight: '700',
+      paddingVertical: 12,
+    },
+    iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: spacing.sm },
+    iconItem: {
+      width: 46,
+      height: 46,
+      borderRadius: radii.sm,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    colorItem: { width: 36, height: 36, borderRadius: 18 },
+    modalCancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
+    balanceHint: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    balanceNote: { marginBottom: spacing.md, lineHeight: 18 },
+    contributeInputWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: radii.lg,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.xl,
+      marginBottom: spacing.sm,
+      gap: spacing.sm,
+    },
+    contributeInput: {
+      fontSize: 36,
+      fontWeight: '800',
+      color: colors.ink,
+      minWidth: 100,
+      textAlign: 'center',
+      ...webTextInputReset,
+    },
+  })
+    );
+  const presetColors = getPresetColors(colors);
   const { triggerRefresh, refreshKey } = useApp();
   const goals = useSavingsGoals();
 
@@ -210,7 +393,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
         ) : goals.data.length === 0 ? (
           <FadeInView index={1}>
             <BrutalBox bg={colors.yellow} radius={radii.xl} shadow={6} contentStyle={styles.emptyHero}>
-              <View style={[styles.emptyHeroIcon, brutalBorder(3)]}>
+              <View style={[styles.emptyHeroIcon, brutalBorder(3, colors)]}>
                 <Ionicons name="flag" size={36} color={colors.ink} />
               </View>
               <SText variant="title3" style={styles.emptyHeroTitle}>
@@ -229,7 +412,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                 { icon: 'laptop' as const, text: 'Compra grande: laptop, moto, etc.' },
               ].map((tip, i) => (
                 <View key={tip.icon} style={[styles.tipRow, i > 0 && styles.tipRowBorder]}>
-                  <View style={[styles.tipIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                  <View style={[styles.tipIcon, brutalBorder(2, colors), { backgroundColor: colors.yellow }]}>
                     <Ionicons name={tip.icon} size={18} color={colors.ink} />
                   </View>
                   <SText variant="body" style={{ flex: 1, fontWeight: '600' }}>{tip.text}</SText>
@@ -253,18 +436,24 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                   value={formatCOP(summary.totalSaved)}
                   tone="ok"
                   icon="wallet"
+                  colors={colors}
+                  styles={styles}
                 />
                 <SummaryStat
                   label="META TOTAL"
                   value={formatCOP(summary.totalTarget)}
                   tone="neutral"
                   icon="flag"
+                  colors={colors}
+                  styles={styles}
                 />
                 <SummaryStat
                   label="FALTA"
                   value={formatCOP(summary.remaining)}
                   tone="warn"
                   icon="hourglass"
+                  colors={colors}
+                  styles={styles}
                 />
               </View>
             </FadeInView>
@@ -280,7 +469,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                         : 'Sigue aportando poco a poco'}
                     </SText>
                   </View>
-                  <View style={[styles.progressBadge, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                  <View style={[styles.progressBadge, brutalBorder(2, colors), { backgroundColor: colors.yellow }]}>
                     <SText variant="headline" style={{ fontWeight: '800' }}>{summary.overallPct}%</SText>
                   </View>
                 </View>
@@ -295,7 +484,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
             <FadeInView index={3}>
               <View style={styles.listHeader}>
                 <HighlightText variant="title3">Mis metas</HighlightText>
-                <View style={[styles.countBadge, brutalBorder(2)]}>
+                <View style={[styles.countBadge, brutalBorder(2, colors)]}>
                   <SText variant="caption2" style={{ fontWeight: '800' }}>{goals.data.length}</SText>
                 </View>
               </View>
@@ -316,7 +505,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
             <FadeInView index={goals.data.length + 5}>
               <AnimatedPressable onPress={openCreate}>
                 <BrutalBox bg={colors.surfaceAlt} radius={radii.lg} shadow={3} contentStyle={styles.addMoreCard}>
-                  <View style={[styles.addMoreIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                  <View style={[styles.addMoreIcon, brutalBorder(2, colors), { backgroundColor: colors.yellow }]}>
                     <Ionicons name="add" size={22} color={colors.ink} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -338,7 +527,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
           <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.modalWrap}>
             <BrutalBox contentStyle={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <View style={[styles.modalIcon, brutalBorder(2), { backgroundColor: colors.yellow }]}>
+                <View style={[styles.modalIcon, brutalBorder(2, colors), { backgroundColor: colors.yellow }]}>
                   <Ionicons name="flag" size={22} color={colors.ink} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -353,7 +542,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
 
               <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Nombre</SText>
               <TextInput
-                style={[styles.input, brutalBorder(2)]}
+                style={[styles.input, brutalBorder(2, colors)]}
                 placeholder="Ej. Fondo de emergencia"
                 placeholderTextColor={colors.textMuted}
                 value={title}
@@ -362,7 +551,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
 
               <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Etiqueta (opcional)</SText>
               <TextInput
-                style={[styles.input, brutalBorder(2)]}
+                style={[styles.input, brutalBorder(2, colors)]}
                 placeholder="Ej. Red de seguridad"
                 placeholderTextColor={colors.textMuted}
                 value={subtitle}
@@ -370,7 +559,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
               />
 
               <SText variant="caption1" color={colors.textMuted} style={styles.fieldLabel}>Monto objetivo</SText>
-              <View style={[styles.inputWrap, brutalBorder(2)]}>
+              <View style={[styles.inputWrap, brutalBorder(2, colors)]}>
                 <SText variant="body" style={{ fontWeight: '700' }}>$</SText>
                 <TextInput
                   style={styles.amountField}
@@ -388,7 +577,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                 {presetIcons.map((ic) => (
                   <AnimatedPressable
                     key={ic}
-                    style={[styles.iconItem, brutalBorder(2), selectedIcon === ic && { backgroundColor: colors.yellow }]}
+                    style={[styles.iconItem, brutalBorder(2, colors), selectedIcon === ic && { backgroundColor: colors.yellow }]}
                     onPress={() => setSelectedIcon(ic)}
                   >
                     <Ionicons name={ic as any} size={22} color={colors.ink} />
@@ -404,7 +593,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                     style={[
                       styles.colorItem,
                       { backgroundColor: clr },
-                      brutalBorder(2),
+                      brutalBorder(2, colors),
                       selectedColor === clr && { borderColor: colors.ink, borderWidth: 3 },
                     ]}
                     onPress={() => setSelectedColor(clr)}
@@ -430,7 +619,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
           <Animated.View entering={SlideInDown.springify().damping(20)} style={styles.modalWrap}>
             <BrutalBox bg={colors.yellow} contentStyle={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <View style={[styles.modalIcon, brutalBorder(2), { backgroundColor: colors.surface }]}>
+                <View style={[styles.modalIcon, brutalBorder(2, colors), { backgroundColor: colors.surface }]}>
                   <Ionicons name="cash" size={22} color={colors.ink} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -456,7 +645,7 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
                 El aporte se descuenta de tu balance neto y queda registrado como gasto en Ahorro.
               </SText>
 
-              <View style={[styles.contributeInputWrap, brutalBorder(3)]}>
+              <View style={[styles.contributeInputWrap, brutalBorder(3, colors)]}>
                 <SText variant="title2" style={{ fontWeight: '800' }}>$</SText>
                 <TextInput
                   style={styles.contributeInput}
@@ -512,171 +701,3 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  scroll: { flex: 1, zIndex: 1 },
-  scrollContent: { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
-  topBar: { marginBottom: spacing.lg },
-  summaryRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  summaryStat: { padding: spacing.md, minWidth: 0 },
-  summaryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  summaryLabel: { textTransform: 'uppercase', letterSpacing: 0.3 },
-  progressCard: { padding: spacing.lg, marginBottom: spacing.lg },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  progressBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radii.sm,
-  },
-  sectionTitle: { fontWeight: '800', textTransform: 'uppercase' },
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  countBadge: {
-    backgroundColor: colors.yellow,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-  },
-  addMoreCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-    marginTop: spacing.sm,
-  },
-  addMoreIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyHero: {
-    paddingVertical: spacing.xxxl,
-    paddingHorizontal: spacing.xl,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  emptyHeroIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  emptyHeroTitle: { fontWeight: '800', textAlign: 'center', marginBottom: spacing.sm },
-  emptyHeroText: { textAlign: 'center', lineHeight: 20, maxWidth: 280 },
-  tipsCard: { padding: spacing.lg, marginBottom: spacing.lg },
-  tipsTitle: { fontWeight: '800', textTransform: 'uppercase', marginBottom: spacing.md },
-  tipRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md },
-  tipRowBorder: { borderTopWidth: 2, borderTopColor: colors.bgAlt },
-  tipIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-  },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalWrap: { padding: spacing.xl },
-  modalContent: { padding: spacing.xl },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
-  modalIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fieldLabel: { marginBottom: spacing.sm, marginTop: spacing.sm, textTransform: 'uppercase', fontWeight: '600' },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 14,
-    color: colors.ink,
-    fontSize: 15,
-    marginBottom: spacing.sm,
-  },
-  inputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 4,
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  amountField: {
-    flex: 1,
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: '700',
-    paddingVertical: 12,
-  },
-  iconRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: spacing.sm },
-  iconItem: {
-    width: 46,
-    height: 46,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  colorItem: { width: 36, height: 36, borderRadius: 18 },
-  modalCancel: { alignSelf: 'center', marginTop: spacing.md, paddingVertical: spacing.sm },
-  balanceHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  balanceNote: { marginBottom: spacing.md, lineHeight: 18 },
-  contributeInputWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  contributeInput: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: colors.ink,
-    minWidth: 100,
-    textAlign: 'center',
-    ...(Platform.OS === 'web' ? { outlineStyle: 'none' as const } : {}),
-  },
-});
