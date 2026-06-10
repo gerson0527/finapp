@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { Ionicons } from '@expo/vector-icons';
 import {
   deleteRecurringTemplate,
@@ -69,11 +70,7 @@ export default function RecurringScreen() {
     }
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useFocusRefresh(load, [load]);
 
   async function toggleActive(item: RecurringTemplate) {
     try {

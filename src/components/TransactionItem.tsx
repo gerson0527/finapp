@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { Transaction } from '@/services/transactionService';
 import { getTransactionSourceLabel } from '@/lib/transactionHelpers';
 import { formatCOP } from '@/src/utils/currency';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { parseTransactionDate } from '@/lib/transactionDate';
 import SText from '@/src/components/SText';
 import FadeInView from '@/src/components/FadeInView';
 import AnimatedPressable from '@/src/components/AnimatedPressable';
@@ -66,7 +67,7 @@ export default function TransactionItem({
   const isIncome = transaction.type === 'income';
   const cat = transaction.category;
 
-  const dateObj = parseISO(transaction.date);
+  const dateObj = parseTransactionDate(transaction.date);
   const dateStr = format(dateObj, 'd MMM', { locale: es });
   const timeStr = transaction.time?.slice(0, 5);
 

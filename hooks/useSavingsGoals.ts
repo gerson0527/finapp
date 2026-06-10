@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { getSavingsGoals, SavingsGoal } from '@/services/savingsService';
 import { useAppRefresh } from '@/hooks/useAppRefresh';
 
@@ -13,16 +13,12 @@ export function useSavingsGoals() {
       setError(null);
       const result = await getSavingsGoals();
       setData(result);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al cargar');
     } finally {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useAppRefresh(load);
 

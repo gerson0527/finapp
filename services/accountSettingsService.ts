@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId } from '@/lib/getCurrentUser';
+import { invalidateRequestCache } from '@/lib/requestCache';
 
 export interface UserMetadata {
   display_name?: string;
@@ -7,7 +8,8 @@ export interface UserMetadata {
 }
 
 export async function updateUserMetadata(patch: UserMetadata): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
   if (!user) throw new Error('Debes iniciar sesión');
 
   const current = (user.user_metadata ?? {}) as UserMetadata;
@@ -50,4 +52,7 @@ export async function updateMonthlyIncome(monthlyIncome: number): Promise<void> 
     );
 
   if (error) throw new Error(error.message);
+  invalidateRequestCache('profile:');
+  invalidateRequestCache('accounts:');
+  invalidateRequestCache('main-account:');
 }

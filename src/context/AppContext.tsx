@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { getCurrentMonth } from '@/lib/month';
+import { invalidateRequestCache } from '@/lib/requestCache';
 
 interface AppContextType {
   selectedMonth: string;
@@ -19,6 +20,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   function triggerRefresh() {
+    invalidateRequestCache();
     setRefreshKey((k) => k + 1);
   }
 

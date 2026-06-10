@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useFocusEffect } from 'expo-router';
 import {
   View,
   StyleSheet,
@@ -343,12 +342,6 @@ export default function BudgetsScreen() {
   const insets = useSafeAreaInsets();
   const { selectedMonth, triggerRefresh, refreshKey } = useApp();
   const budgets = useBudgets(selectedMonth);
-
-  useFocusEffect(
-    useCallback(() => {
-      budgets.refresh();
-    }, [budgets.refresh, refreshKey])
-  );
 
   const [showModal, setShowModal] = useState(false);
   const [editingBudget, setEditingBudget] = useState<BudgetWithSpent | null>(null);

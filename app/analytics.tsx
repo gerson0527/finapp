@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '@/src/context/AppContext';
 import { getAdvancedAnalytics } from '@/services/analyticsService';
@@ -48,15 +48,15 @@ export default function AnalyticsScreen() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Awaited<ReturnType<typeof getAdvancedAnalytics>> | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      getAdvancedAnalytics(selectedMonth)
-        .then(setData)
-        .catch(() => setData(null))
-        .finally(() => setLoading(false));
-    }, [selectedMonth])
-  );
+  const load = useCallback(() => {
+    setLoading(true);
+    getAdvancedAnalytics(selectedMonth)
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, [selectedMonth]);
+
+  useFocusRefresh(load, [selectedMonth]);
 
   const pct = data?.percentChange;
   const pctLabel =

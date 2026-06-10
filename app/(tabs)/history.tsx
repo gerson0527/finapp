@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Modal, TouchableOpacity } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown } from 'react-native-reanimated';
-import { useApp } from '@/src/context/AppContext';
 import { useTransactions } from '@/hooks/useTransactions';
 import { getCategories } from '@/services/categoryService';
 import { getCurrentMonth, formatMonthLabel, getRecentMonths } from '@/lib/month';
@@ -22,15 +21,10 @@ import { useTheme } from '@/src/context/ThemeContext';
 import { useThemedStyles } from '@/src/hooks/useThemedStyles';
 import type { ThemeColors } from '@/src/constants/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { parseISO, isToday, isYesterday, format } from 'date-fns';
-import { es } from 'date-fns/locale';
-
-function getGroupKey(dateStr: string): string {
-  const d = parseISO(dateStr);
-  if (isToday(d)) return 'Hoy';
-  if (isYesterday(d)) return 'Ayer';
-  return format(d, "d 'de' MMMM", { locale: es });
-}
+import {
+  getTransactionDayKey,
+  getTransactionGroupLabel,
+} from '@/lib/transactionDate';
 
 function SummaryPill({
   label,
@@ -140,15 +134,8 @@ export default function HistoryScreen() {
     );
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { refreshKey } = useApp();
   const [historyMonth, setHistoryMonth] = useState(getCurrentMonth);
   const { data: allTxns, loading, refresh } = useTransactions(historyMonth);
-
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh, refreshKey])
-  );
 
   const [search, setSearch] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
@@ -189,13 +176,21 @@ export default function HistoryScreen() {
   }, [filtered]);
 
   const grouped = useMemo(() => {
-    const groups: Record<string, typeof filtered> = {};
+    const map = new Map<string, typeof filtered>();
     filtered.forEach((tx) => {
-      const key = getGroupKey(tx.date);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(tx);
+      const dayKey = getTransactionDayKey(tx.date);
+      const list = map.get(dayKey);
+      if (list) list.push(tx);
+      else map.set(dayKey, [tx]);
     });
-    return groups;
+
+    return [...map.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([dayKey, items]) => ({
+        dayKey,
+        label: getTransactionGroupLabel(dayKey),
+        items,
+      }));
   }, [filtered]);
 
   const openEdit = useCallback((id: string) => {
@@ -209,7 +204,6 @@ export default function HistoryScreen() {
     setSearch('');
   }
 
-  const groupKeys = Object.keys(grouped);
   let itemIndex = 0;
 
   return (
@@ -274,7 +268,7 @@ export default function HistoryScreen() {
 
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <SkeletonLoader key={i} variant="listItem" />)
-        ) : groupKeys.length === 0 ? (
+        ) : grouped.length === 0 ? (
           <FadeInView index={3}>
             <BrutalBox contentStyle={styles.emptyState}>
               <View style={[styles.emptyIcon, brutalBorder(2, colors)]}>
@@ -298,16 +292,16 @@ export default function HistoryScreen() {
             </BrutalBox>
           </FadeInView>
         ) : (
-          groupKeys.map((key, gi) => (
-            <FadeInView key={key} index={gi + 3}>
+          grouped.map((group, gi) => (
+            <FadeInView key={group.dayKey} index={gi + 3}>
               <View style={styles.groupHeader}>
-                <SText variant="subhead" style={styles.groupTitle}>{key}</SText>
+                <SText variant="subhead" style={styles.groupTitle}>{group.label}</SText>
                 <SText variant="caption2" color={colors.textMuted}>
-                  {grouped[key].length} mov.
+                  {group.items.length} mov.
                 </SText>
               </View>
               <BrutalBox contentStyle={styles.sectionCard}>
-                {grouped[key].map((tx, i) => {
+                {group.items.map((tx, i) => {
                   const idx = itemIndex++;
                   return (
                     <View key={tx.id}>
@@ -318,7 +312,7 @@ export default function HistoryScreen() {
                         onPress={() => openEdit(tx.id)}
                         readOnly={!isEditableTransaction(tx)}
                       />
-                      {i < grouped[key].length - 1 ? <View style={styles.divider} /> : null}
+                      {i < group.items.length - 1 ? <View style={styles.divider} /> : null}
                     </View>
                   );
                 })}

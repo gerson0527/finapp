@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { getAuthSession, onAuthSessionChange, supabase } from '@/lib/supabase';
+import { setAuthUserIdCache } from '@/lib/getCurrentUser';
 import { needsOnboarding } from '@/services/profileService';
 
 interface AuthContextType {
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function applySession(session: Session | null) {
       if (!mounted) return;
+      setAuthUserIdCache(session?.user?.id ?? null);
       setSession(session);
       if (session) {
         try {

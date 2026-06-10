@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { getCurrentUserId, getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
 import { assertCanCreateExpense } from '@/lib/balanceCheck';
 import { getMainAccount } from '@/services/accountService';
+import { cachedFetch, invalidateRequestCache } from '@/lib/requestCache';
 
 export interface SavingsGoal {
   id: string;
@@ -26,14 +27,16 @@ export async function getSavingsGoals(): Promise<SavingsGoal[]> {
   const userId = await getCurrentUserIdOrNull();
   if (!userId) return [];
 
-  const { data, error } = await supabase
-    .from('savings_goals')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at');
+  return cachedFetch(`savings:${userId}`, async () => {
+    const { data, error } = await supabase
+      .from('savings_goals')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at');
 
-  if (error) throw new Error(error.message);
-  return data ?? [];
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }, 30_000);
 }
 
 export async function createSavingsGoal(dto: CreateSavingsGoalDTO): Promise<SavingsGoal> {

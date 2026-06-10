@@ -8,7 +8,8 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import {
@@ -94,7 +95,7 @@ export default function AccountsScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusRefresh(load, [load]);
 
   async function handleCreate() {
     const amount = copDigitsToNumber(balance);

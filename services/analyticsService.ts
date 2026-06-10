@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
+import { RECURRING_INSTANCE_FILTER } from '@/lib/recurrenceDate';
+import { cachedFetch } from '@/lib/requestCache';
 
 export interface ExpenseByMonth {
   month: string;
@@ -89,6 +91,7 @@ export async function getExpenseAnalytics(currentMonth: string): Promise<Expense
     .select('amount, date, category_id, category:categories(name, color)')
     .eq('user_id', userId)
     .eq('type', 'expense')
+    .or(RECURRING_INSTANCE_FILTER)
     .gte('date', startDate)
     .order('date', { ascending: false });
 
@@ -208,28 +211,32 @@ function buildInsights(
 }
 
 export async function getAdvancedAnalytics(currentMonth: string): Promise<AdvancedAnalytics> {
-  const base = await getExpenseAnalytics(currentMonth);
   const userId = await getCurrentUserIdOrNull();
+  const cacheKey = `analytics:${userId ?? 'anon'}:${currentMonth}`;
 
-  if (!userId) {
-    return {
-      ...base,
-      insights: [],
-      busiestDay: null,
-      topGrowthCategory: null,
-      netBalanceTrend: [],
-    };
-  }
+  return cachedFetch(cacheKey, async () => {
+    const base = await getExpenseAnalytics(currentMonth);
 
-  const months = base.monthly.map((m) => m.month);
-  const startMonth = months[0];
-  const [sy, sm] = startMonth.split('-').map(Number);
-  const startDate = new Date(sy, sm - 1, 1).toISOString().split('T')[0];
+    if (!userId) {
+      return {
+        ...base,
+        insights: [],
+        busiestDay: null,
+        topGrowthCategory: null,
+        netBalanceTrend: [],
+      };
+    }
 
-  const { data, error } = await supabase
+    const months = base.monthly.map((m) => m.month);
+    const startMonth = months[0];
+    const [sy, sm] = startMonth.split('-').map(Number);
+    const startDate = new Date(sy, sm - 1, 1).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
     .from('transactions')
     .select('amount, date, type, category_id, category:categories(name)')
     .eq('user_id', userId)
+    .or(RECURRING_INSTANCE_FILTER)
     .gte('date', startDate)
     .order('date', { ascending: false });
 
@@ -305,4 +312,5 @@ export async function getAdvancedAnalytics(currentMonth: string): Promise<Advanc
     topGrowthCategory,
     netBalanceTrend: Array.from(netMap.values()),
   };
+  }, 45_000);
 }

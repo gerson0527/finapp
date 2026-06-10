@@ -7,7 +7,6 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useSavingsGoals } from '@/hooks/useSavingsGoals';
@@ -249,14 +248,8 @@ export default function SavingsGoalsScreen({ showAddButton: _showAddButton }: Sa
   })
     );
   const presetColors = getPresetColors(colors);
-  const { triggerRefresh, refreshKey } = useApp();
+  const { triggerRefresh } = useApp();
   const goals = useSavingsGoals();
-
-  useFocusEffect(
-    useCallback(() => {
-      goals.refresh();
-    }, [goals.refresh, refreshKey])
-  );
 
   const [showCreate, setShowCreate] = useState(false);
   const [showContribute, setShowContribute] = useState<string | null>(null);

@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withSequence } from 'react-native-reanimated';
 import { format, isToday, parseISO } from 'date-fns';
+import { getRecurrenceDateInMonth } from '@/lib/recurrenceDate';
 import { getCategories, Category } from '@/services/categoryService';
 import { getAccounts, Account } from '@/services/accountService';
 import { CreateTransactionDTO, CreateTransferDTO, Transaction } from '@/services/transactionService';
@@ -380,20 +381,25 @@ export default function TransactionForm({
             ? format(new Date(), 'HH:mm:ss')
             : '12:00:00';
 
+      const recurrenceDayNum =
+        type === 'expense' && !tx && isRecurring
+          ? Math.min(31, Math.max(1, parseInt(recurrenceDay, 10) || 1))
+          : undefined;
+
       await onSubmit({
         type,
         amount: numAmount,
         description,
         category_id: selectedCategoryId,
         account_id: accountId,
-        date: format(transactionDate, 'yyyy-MM-dd'),
+        date:
+          recurrenceDayNum != null
+            ? getRecurrenceDateInMonth(recurrenceDayNum)
+            : format(transactionDate, 'yyyy-MM-dd'),
         time: txTime,
         note: note.trim() || undefined,
-        is_recurring: type === 'expense' && !tx ? isRecurring : undefined,
-        recurrence_day:
-          type === 'expense' && !tx && isRecurring
-            ? Math.min(31, Math.max(1, parseInt(recurrenceDay, 10) || 1))
-            : undefined,
+        is_recurring: recurrenceDayNum != null ? true : undefined,
+        recurrence_day: recurrenceDayNum,
       });
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'No se pudo guardar';

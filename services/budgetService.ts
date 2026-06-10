@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserId, getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
 import { getPreviousMonth } from '@/lib/month';
+import { cachedFetch, invalidateRequestCache } from '@/lib/requestCache';
 
 export interface BudgetWithSpent {
   id: string;
@@ -58,19 +59,21 @@ export async function getBudgets(month: string): Promise<BudgetWithSpent[]> {
   const userId = await getCurrentUserIdOrNull();
   if (!userId) return [];
 
-  const { data, error } = await supabase
-    .from('budgets_with_spent')
-    .select('*')
-    .eq('month', month)
-    .eq('user_id', userId)
-    .order('title');
+  return cachedFetch(`budgets:${userId}:${month}`, async () => {
+    const { data, error } = await supabase
+      .from('budgets_with_spent')
+      .select('*')
+      .eq('month', month)
+      .eq('user_id', userId)
+      .order('title');
 
-  if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row) => ({
-    ...row,
-    title: row.title ?? row.category_name ?? 'Presupuesto',
-  }));
+    return (data ?? []).map((row) => ({
+      ...row,
+      title: row.title ?? row.category_name ?? 'Presupuesto',
+    }));
+  }, 30_000);
 }
 
 export async function createBudget(dto: CreateBudgetDTO) {
@@ -120,6 +123,7 @@ export async function createBudget(dto: CreateBudgetDTO) {
 
   const row = data?.[0];
   if (!row) throw new Error('No se pudo crear el presupuesto.');
+  invalidateRequestCache('budgets:');
   return row;
 }
 
@@ -172,6 +176,7 @@ export async function updateBudget(id: string, dto: UpdateBudgetDTO): Promise<Bu
 
   const row = data?.[0];
   if (!row) throw new Error('Presupuesto no encontrado.');
+  invalidateRequestCache('budgets:');
   return row;
 }
 
@@ -186,6 +191,7 @@ export async function deleteBudget(id: string): Promise<void> {
 
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error('Presupuesto no encontrado.');
+  invalidateRequestCache('budgets:');
 }
 
 /** Copia presupuestos del mes anterior al mes actual (gasto empieza en 0). */

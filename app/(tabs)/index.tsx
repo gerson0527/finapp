@@ -1,7 +1,7 @@
 import { useBudgets } from '@/hooks/useBudgets';
 import { useMonthlyStats } from '@/hooks/useMonthlyStats';
 import { useTransactions } from '@/hooks/useTransactions';
-import { getMainAccount } from '@/services/accountService';
+import { getMainAccount, recalculateMainAccountBalance } from '@/services/accountService';
 import { formatMonthLabel } from '@/lib/month';
 import { isBalanceCritical, isBalanceEmpty } from '@/lib/balanceAlerts';
 import BrutalScreen from '@/src/components/BrutalScreen';
@@ -23,7 +23,8 @@ import { useApp } from '@/src/context/AppContext';
 import { formatCOP } from '@/src/utils/currency';
 import { isEditableTransaction } from '@/lib/transactionHelpers';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useFocusRefresh } from '@/hooks/useFocusRefresh';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import ZeroBalanceAlert from '@/src/components/ZeroBalanceAlert';
@@ -250,7 +251,7 @@ export default function HomeScreen() {
   })
     );
   const router = useRouter();
-  const { selectedMonth, refreshKey } = useApp();
+  const { selectedMonth } = useApp();
   const stats = useMonthlyStats(selectedMonth);
   const budgets = useBudgets(selectedMonth);
   const transactions = useTransactions(selectedMonth);
@@ -264,27 +265,23 @@ export default function HomeScreen() {
 
   const loadBalance = useCallback(() => {
     setBalanceLoading(true);
-    getMainAccount()
-      .then((acct) => {
-        if (acct) setBalance(Number(acct.balance));
-        setFetchError(false);
+    recalculateMainAccountBalance()
+      .then((value) => {
+        if (value != null) {
+          setBalance(value);
+          setFetchError(false);
+          return;
+        }
+        return getMainAccount().then((acct) => {
+          if (acct) setBalance(Number(acct.balance));
+          setFetchError(false);
+        });
       })
       .catch(() => setFetchError(true))
       .finally(() => setBalanceLoading(false));
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadBalance();
-      stats.refresh();
-      budgets.refresh();
-      transactions.refresh();
-    }, [loadBalance, stats.refresh, budgets.refresh, transactions.refresh, refreshKey])
-  );
-
-  useEffect(() => {
-    loadBalance();
-  }, [loadBalance, refreshKey]);
+  useFocusRefresh(loadBalance, [loadBalance]);
 
   const balanceCritical = isBalanceCritical(balance, stats.income);
 

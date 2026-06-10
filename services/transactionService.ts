@@ -4,8 +4,19 @@ import {
   assertCanCreateExpense,
   assertCanUpdateToExpense,
 } from '@/lib/balanceCheck';
+import { getCurrentMonth } from '@/lib/month';
+import { getRecurrenceDateInMonth, RECURRING_INSTANCE_FILTER } from '@/lib/recurrenceDate';
 import { getMainAccount, getAccount } from '@/services/accountService';
+import { ensureRecurringTransactions } from '@/services/recurringService';
 import { adjustMonthlyBalancesAfterTransactionRemoval } from '@/services/monthlyBalanceService';
+import { cachedFetch, invalidateRequestCache } from '@/lib/requestCache';
+
+function bustDataCache() {
+  invalidateRequestCache('txns:');
+  invalidateRequestCache('stats:');
+  invalidateRequestCache('accounts:');
+  invalidateRequestCache('main-account:');
+}
 
 export interface Transaction {
   id: string;
@@ -67,27 +78,31 @@ export async function getTransactions(month: string, accountId?: string): Promis
   const userId = await getCurrentUserIdOrNull();
   if (!userId) return [];
 
-  const [year, m] = month.split('-').map(Number);
-  const start = new Date(year, m - 1, 1).toISOString().split('T')[0];
-  const end = new Date(year, m, 0).toISOString().split('T')[0];
+  const cacheKey = `txns:${userId}:${month}:${accountId ?? 'all'}`;
+  return cachedFetch(cacheKey, async () => {
+    const [year, m] = month.split('-').map(Number);
+    const start = new Date(year, m - 1, 1).toISOString().split('T')[0];
+    const end = new Date(year, m, 0).toISOString().split('T')[0];
 
-  let query = supabase
-    .from('transactions')
-    .select('*, category:categories(name, icon, color)')
-    .eq('user_id', userId)
-    .gte('date', start)
-    .lte('date', end);
+    let query = supabase
+      .from('transactions')
+      .select('*, category:categories(name, icon, color)')
+      .eq('user_id', userId)
+      .or(RECURRING_INSTANCE_FILTER)
+      .gte('date', start)
+      .lte('date', end);
 
-  if (accountId) {
-    query = query.eq('account_id', accountId);
-  }
+    if (accountId) {
+      query = query.eq('account_id', accountId);
+    }
 
-  const { data, error } = await query
-    .order('date', { ascending: false })
-    .order('time', { ascending: false });
+    const { data, error } = await query
+      .order('date', { ascending: false })
+      .order('time', { ascending: false });
 
-  if (error) throw new Error(error.message);
-  return data ?? [];
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }, 25_000);
 }
 
 export async function getTransactionsByCategory(categoryId: string, month: string): Promise<Transaction[]> {
@@ -103,6 +118,7 @@ export async function getTransactionsByCategory(categoryId: string, month: strin
     .select('*, category:categories(name, icon, color)')
     .eq('account_id', account.id)
     .eq('category_id', categoryId)
+    .or(RECURRING_INSTANCE_FILTER)
     .gte('date', start)
     .lte('date', end)
     .order('date', { ascending: false });
@@ -113,12 +129,19 @@ export async function getTransactionsByCategory(categoryId: string, month: strin
 
 export async function createTransaction(dto: CreateTransactionDTO): Promise<Transaction> {
   const userId = await getCurrentUserId();
+  const isRecurringTemplate = dto.is_recurring === true;
+  const recurrenceDay = dto.recurrence_day ?? 1;
 
   if (dto.type === 'expense') {
     const account = await getAccount(dto.account_id);
     if (!account) throw new Error('No hay cuenta disponible');
     assertCanCreateExpense(dto.amount, Number(account.balance));
   }
+
+  const templateDate =
+    isRecurringTemplate && dto.recurrence_day
+      ? getRecurrenceDateInMonth(recurrenceDay)
+      : dto.date;
 
   const { data: tx, error: txError } = await supabase
     .from('transactions')
@@ -129,12 +152,12 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
       description: dto.description,
       category_id: dto.category_id,
       account_id: dto.account_id,
-      date: dto.date,
+      date: templateDate,
       time: dto.time,
       note: dto.note,
       budget_id: dto.budget_id ?? null,
       is_recurring: dto.is_recurring ?? false,
-      recurrence_day: dto.is_recurring ? dto.recurrence_day ?? null : null,
+      recurrence_day: isRecurringTemplate ? recurrenceDay : null,
       recurring_source_id: null,
     })
     .select('*, category:categories(name, icon, color)')
@@ -142,17 +165,23 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
 
   if (txError) throw new Error(txError.message);
 
-  const delta = dto.type === 'income' ? dto.amount : -dto.amount;
-  const { error: acctError } = await supabase.rpc('update_account_balance', {
-    account_id: dto.account_id,
-    delta,
-  });
+  if (isRecurringTemplate) {
+    await ensureRecurringTransactions(getCurrentMonth());
+  } else {
+    const delta = dto.type === 'income' ? dto.amount : -dto.amount;
+    const { error: acctError } = await supabase.rpc('update_account_balance', {
+      account_id: dto.account_id,
+      delta,
+    });
 
-  if (acctError) {
-    await supabase.from('transactions').delete().eq('id', tx.id);
-    throw new Error(acctError.message);
+    if (acctError) {
+      await supabase.from('transactions').delete().eq('id', tx.id);
+      throw new Error(acctError.message);
+    }
   }
 
+  bustDataCache();
+  invalidateRequestCache('recurring:');
   return tx;
 }
 
@@ -237,6 +266,8 @@ export async function createTransfer(dto: CreateTransferDTO): Promise<void> {
     await supabase.from('transactions').delete().eq('id', outTx.id);
     throw new Error(inBalError.message);
   }
+
+  bustDataCache();
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
@@ -274,6 +305,7 @@ export async function deleteTransaction(id: string): Promise<void> {
   }
 
   await adjustMonthlyBalancesAfterTransactionRemoval(tx.date, tx.type, Number(tx.amount));
+  bustDataCache();
 }
 
 export async function getTransaction(id: string): Promise<Transaction> {
@@ -351,6 +383,7 @@ export async function updateTransaction(id: string, dto: UpdateTransactionDTO): 
   });
 
   if (applyError) throw new Error(applyError.message);
+  bustDataCache();
   return tx;
 }
 
@@ -358,26 +391,29 @@ export async function getMonthlyStats(month: string): Promise<MonthlyStats> {
   const userId = await getCurrentUserIdOrNull();
   if (!userId) return { income: 0, expenses: 0, balance: 0 };
 
-  const [year, m] = month.split('-').map(Number);
-  const start = new Date(year, m - 1, 1).toISOString().split('T')[0];
-  const end = new Date(year, m, 0).toISOString().split('T')[0];
+  return cachedFetch(`stats:${userId}:${month}`, async () => {
+    const [year, m] = month.split('-').map(Number);
+    const start = new Date(year, m - 1, 1).toISOString().split('T')[0];
+    const end = new Date(year, m, 0).toISOString().split('T')[0];
 
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('type, amount')
-    .eq('user_id', userId)
-    .gte('date', start)
-    .lte('date', end);
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('type, amount')
+      .eq('user_id', userId)
+      .or(RECURRING_INSTANCE_FILTER)
+      .gte('date', start)
+      .lte('date', end);
 
-  if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message);
 
-  const income = (data ?? [])
-    .filter((t) => t.type === 'income')
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+    const income = (data ?? [])
+      .filter((t) => t.type === 'income')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
 
-  const expenses = (data ?? [])
-    .filter((t) => t.type === 'expense')
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+    const expenses = (data ?? [])
+      .filter((t) => t.type === 'expense')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
 
-  return { income, expenses, balance: income - expenses };
+    return { income, expenses, balance: income - expenses };
+  }, 25_000);
 }

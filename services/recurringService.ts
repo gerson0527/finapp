@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
 import { getCurrentMonth } from '@/lib/month';
+import { cachedFetch, invalidateRequestCache } from '@/lib/requestCache';
 import type { Transaction } from '@/services/transactionService';
 
 export interface RecurringTemplate {
@@ -40,16 +41,18 @@ export async function getRecurringTemplates(): Promise<RecurringTemplate[]> {
   const userId = await getCurrentUserIdOrNull();
   if (!userId) return [];
 
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*, category:categories(name, icon, color), account:accounts(name)')
-    .eq('user_id', userId)
-    .eq('is_recurring', true)
-    .is('recurring_source_id', null)
-    .order('description');
+  return cachedFetch(`recurring:${userId}`, async () => {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*, category:categories(name, icon, color), account:accounts(name)')
+      .eq('user_id', userId)
+      .eq('is_recurring', true)
+      .is('recurring_source_id', null)
+      .order('description');
 
-  if (error) throw new Error(error.message);
-  return (data ?? []) as RecurringTemplate[];
+    if (error) throw new Error(error.message);
+    return (data ?? []) as RecurringTemplate[];
+  }, 30_000);
 }
 
 export async function setRecurringActive(id: string, active: boolean): Promise<void> {
@@ -64,7 +67,7 @@ export async function setRecurringActive(id: string, active: boolean): Promise<v
 export async function deleteRecurringTemplate(id: string): Promise<void> {
   const { data: tx, error: fetchError } = await supabase
     .from('transactions')
-    .select('id, type, amount, account_id, is_recurring, recurring_source_id')
+    .select('id, is_recurring, recurring_source_id')
     .eq('id', id)
     .single();
 
@@ -76,12 +79,7 @@ export async function deleteRecurringTemplate(id: string): Promise<void> {
   const { error: delError } = await supabase.from('transactions').delete().eq('id', id);
   if (delError) throw new Error(delError.message);
 
-  const delta = tx.type === 'income' ? -Number(tx.amount) : Number(tx.amount);
-  const { error: balError } = await supabase.rpc('update_account_balance', {
-    account_id: tx.account_id,
-    delta,
-  });
-  if (balError) throw new Error(balError.message);
+  invalidateRequestCache('recurring:');
 }
 
 export function getNextRecurrenceLabel(day: number | null): string {
@@ -112,7 +110,7 @@ export async function updateRecurringTemplate(
 ): Promise<Transaction> {
   const { data: old, error: fetchError } = await supabase
     .from('transactions')
-    .select('id, type, amount, account_id, is_recurring, recurring_source_id')
+    .select('id, is_recurring, recurring_source_id')
     .eq('id', id)
     .single();
 
@@ -120,13 +118,6 @@ export async function updateRecurringTemplate(
   if (!old.is_recurring || old.recurring_source_id) {
     throw new Error('Solo puedes editar plantillas recurrentes.');
   }
-
-  const reverseDelta = old.type === 'income' ? -Number(old.amount) : Number(old.amount);
-  const { error: reverseError } = await supabase.rpc('update_account_balance', {
-    account_id: old.account_id,
-    delta: reverseDelta,
-  });
-  if (reverseError) throw new Error(reverseError.message);
 
   const { data: tx, error: updateError } = await supabase
     .from('transactions')
@@ -141,20 +132,8 @@ export async function updateRecurringTemplate(
     .select('*, category:categories(name, icon, color)')
     .single();
 
-  if (updateError) {
-    await supabase.rpc('update_account_balance', {
-      account_id: old.account_id,
-      delta: -reverseDelta,
-    });
-    throw new Error(updateError.message);
-  }
+  if (updateError) throw new Error(updateError.message);
 
-  const applyDelta = old.type === 'income' ? dto.amount : -dto.amount;
-  const { error: applyError } = await supabase.rpc('update_account_balance', {
-    account_id: dto.account_id,
-    delta: applyDelta,
-  });
-  if (applyError) throw new Error(applyError.message);
-
+  invalidateRequestCache('recurring:');
   return tx as Transaction;
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   getBudgets,
   rolloverBudgetsToMonth,
@@ -45,16 +45,12 @@ export function useBudgets(month: string) {
       }
 
       setData(result);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Error al cargar');
     } finally {
       setLoading(false);
     }
   }, [month]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useAppRefresh(load, [month]);
 

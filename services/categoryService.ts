@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
-import { getCurrentUserId } from '@/lib/getCurrentUser';
+import { getCurrentUserId, getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
+import { cachedFetch, invalidateRequestCache } from '@/lib/requestCache';
 
 export interface Category {
   id: string;
@@ -20,22 +21,28 @@ export interface CreateCategoryDTO {
 export type UpdateCategoryDTO = Partial<CreateCategoryDTO>;
 
 export async function getCategories(type?: 'income' | 'expense'): Promise<Category[]> {
-  const userId = await getCurrentUserId();
-  let query = supabase
-    .from('categories')
-    .select('*')
-    .or(`user_id.is.null,user_id.eq.${userId}`)
-    .order('name');
+  const userId = await getCurrentUserIdOrNull();
+  const cacheKey = `categories:${userId ?? 'anon'}:${type ?? 'all'}`;
 
-  if (type === 'income') {
-    query = query.in('type', ['income', 'both']);
-  } else if (type === 'expense') {
-    query = query.in('type', ['expense', 'both']);
-  }
+  return cachedFetch(cacheKey, async () => {
+    if (!userId) return [];
 
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return data ?? [];
+    let query = supabase
+      .from('categories')
+      .select('*')
+      .or(`user_id.is.null,user_id.eq.${userId}`)
+      .order('name');
+
+    if (type === 'income') {
+      query = query.in('type', ['income', 'both']);
+    } else if (type === 'expense') {
+      query = query.in('type', ['expense', 'both']);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }, 60_000);
 }
 
 export async function createCategory(dto: CreateCategoryDTO): Promise<Category> {

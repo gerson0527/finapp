@@ -7,6 +7,7 @@ import { getCurrentUserIdOrNull } from '@/lib/getCurrentUser';
 import { getBudgets } from '@/services/budgetService';
 import { getMonthlyStats } from '@/services/transactionService';
 import { formatMonthLabel } from '@/lib/month';
+import { RECURRING_INSTANCE_FILTER } from '@/lib/recurrenceDate';
 import { formatCOP } from '@/src/utils/currency';
 
 export interface ExportRow {
@@ -63,6 +64,7 @@ export async function getExportRows(month: string): Promise<ExportRow[]> {
     .from('transactions')
     .select('date, time, description, type, amount, category:categories(name), account:accounts(name)')
     .eq('user_id', userId)
+    .or(RECURRING_INSTANCE_FILTER)
     .gte('date', start)
     .lte('date', end)
     .order('date', { ascending: true })
