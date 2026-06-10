@@ -1,5 +1,8 @@
 import { getCurrentMonth } from '@/lib/month';
 
+/** Fecha interna para plantillas recurrentes (nunca cae en un mes del historial). */
+export const RECURRING_TEMPLATE_SENTINEL_DATE = '1970-01-01';
+
 /** Oculta plantillas recurrentes en listados (solo instancias generadas). */
 export const RECURRING_INSTANCE_FILTER = 'is_recurring.eq.false,is_recurring.is.null';
 

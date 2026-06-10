@@ -8,6 +8,7 @@ import {
   filterVisibleTransactions,
   getRecurrenceDateInMonth,
   RECURRING_INSTANCE_FILTER,
+  RECURRING_TEMPLATE_SENTINEL_DATE,
 } from '@/lib/recurrenceDate';
 import { getMainAccount, getAccount } from '@/services/accountService';
 import { adjustMonthlyBalancesAfterTransactionRemoval } from '@/services/monthlyBalanceService';
@@ -175,10 +176,10 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
     assertCanCreateExpense(dto.amount, Number(account.balance));
   }
 
-  const templateDate =
-    isRecurringTemplate && dto.recurrence_day
-      ? getRecurrenceDateInMonth(recurrenceDay)
-      : dto.date;
+  const instanceDate = isRecurringTemplate
+    ? getRecurrenceDateInMonth(recurrenceDay)
+    : dto.date;
+  const templateDate = isRecurringTemplate ? RECURRING_TEMPLATE_SENTINEL_DATE : dto.date;
 
   const { data: tx, error: txError } = await supabase
     .from('transactions')
@@ -208,7 +209,7 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
       tx.id,
       dto,
       recurrenceDay,
-      templateDate
+      instanceDate
     );
   } else {
     const delta = dto.type === 'income' ? dto.amount : -dto.amount;
