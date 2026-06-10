@@ -4,10 +4,12 @@ import {
   assertCanCreateExpense,
   assertCanUpdateToExpense,
 } from '@/lib/balanceCheck';
-import { getCurrentMonth } from '@/lib/month';
-import { getRecurrenceDateInMonth, RECURRING_INSTANCE_FILTER } from '@/lib/recurrenceDate';
+import {
+  filterVisibleTransactions,
+  getRecurrenceDateInMonth,
+  RECURRING_INSTANCE_FILTER,
+} from '@/lib/recurrenceDate';
 import { getMainAccount, getAccount } from '@/services/accountService';
-import { ensureRecurringTransactions } from '@/services/recurringService';
 import { adjustMonthlyBalancesAfterTransactionRemoval } from '@/services/monthlyBalanceService';
 import { cachedFetch, invalidateRequestCache } from '@/lib/requestCache';
 
@@ -101,7 +103,7 @@ export async function getTransactions(month: string, accountId?: string): Promis
       .order('time', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return filterVisibleTransactions(data ?? []);
   }, 25_000);
 }
 
@@ -124,7 +126,42 @@ export async function getTransactionsByCategory(categoryId: string, month: strin
     .order('date', { ascending: false });
 
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return filterVisibleTransactions(data ?? []);
+}
+
+async function insertRecurringInstanceForMonth(
+  userId: string,
+  templateId: string,
+  dto: CreateTransactionDTO,
+  recurrenceDay: number,
+  instanceDate: string
+): Promise<void> {
+  const { error: instError } = await supabase.from('transactions').insert({
+    user_id: userId,
+    type: dto.type,
+    amount: dto.amount,
+    description: dto.description,
+    category_id: dto.category_id,
+    account_id: dto.account_id,
+    date: instanceDate,
+    time: dto.time,
+    note: dto.note ?? null,
+    is_recurring: false,
+    recurrence_day: recurrenceDay,
+    recurring_source_id: templateId,
+  });
+
+  if (instError) {
+    if (instError.code === '23505') return;
+    throw new Error(instError.message);
+  }
+
+  const delta = dto.type === 'income' ? dto.amount : -dto.amount;
+  const { error: acctError } = await supabase.rpc('update_account_balance', {
+    account_id: dto.account_id,
+    delta,
+  });
+  if (acctError) throw new Error(acctError.message);
 }
 
 export async function createTransaction(dto: CreateTransactionDTO): Promise<Transaction> {
@@ -166,7 +203,13 @@ export async function createTransaction(dto: CreateTransactionDTO): Promise<Tran
   if (txError) throw new Error(txError.message);
 
   if (isRecurringTemplate) {
-    await ensureRecurringTransactions(getCurrentMonth());
+    await insertRecurringInstanceForMonth(
+      userId,
+      tx.id,
+      dto,
+      recurrenceDay,
+      templateDate
+    );
   } else {
     const delta = dto.type === 'income' ? dto.amount : -dto.amount;
     const { error: acctError } = await supabase.rpc('update_account_balance', {
